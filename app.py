@@ -97,25 +97,27 @@ if df is not None:
       if "original_limits" not in st.session_state:
         st.session_state["original_limits"] = {}
 
-      if current_school_code not in st.session_state["original_limits"]:
-        st.session_state["original_limits"][current_school_code] = {}
-        target_columns_check = [
-            "Standalone desktop computers",
-            "Shared computing host desktops",
-            "Computer with dual display 18.5\"LED Backlit",
-            '40" or higher LCD display with VGA splitter, external voltage stabilizer',
-            "Nodes of Shared Computing with Monitor, keyboard, Mouse",
-            "PC Sharing Kit",
-            "Speakers",
-            "Dot Matrix Printers",
-            "16 Port Network Switch",
-        ]
-        for col_name in df.columns:
-          if any(t.lower() in col_name.lower() for t in target_columns_check):
-            val = str(row[col_name])
-            st.session_state["original_limits"][current_school_code][
-                col_name
-            ] = (int(val) if val.isdigit() else 9999)
+      target_columns = [
+          "Standalone desktop computers",
+          "Shared computing host desktops",
+          "Computer with dual display 18.5\"LED Backlit",
+          '40" or higher LCD display with VGA splitter, external voltage stabilizer',
+          "Nodes of Shared Computing with Monitor, keyboard, Mouse",
+          "PC Sharing Kit",
+          "Speakers",
+          "Dot Matrix Printers",
+          "16 Port Network Switch",
+      ]
+
+      # દર વખતે આ શાળાની સાચી ઓરિજિનલ લિમિટ સેટ કરવી (તમામ સાધનો માટે)
+      st.session_state["original_limits"][current_school_code] = {}
+      for col_name in df.columns:
+        if any(t.lower() in col_name.lower() for t in target_columns):
+          val = str(row[col_name]).strip()
+          # જો વેલ્યુ આંકડાકીય હોય તો જ ઇન્ટરજ લેવી, નહીંતર 0
+          st.session_state["original_limits"][current_school_code][col_name] = (
+              int(val) if val.isdigit() else 0
+          )
 
       current_status = str(row.get("Status", "Pending"))
       if current_status.strip() == "Completed":
@@ -136,18 +138,6 @@ if df is not None:
 
         cols = st.columns(3)
         updated_values = {}
-
-        target_columns = [
-            "Standalone desktop computers",
-            "Shared computing host desktops",
-            "Computer with dual display 18.5\"LED Backlit",
-            '40" or higher LCD display with VGA splitter, external voltage stabilizer',
-            "Nodes of Shared Computing with Monitor, keyboard, Mouse",
-            "PC Sharing Kit",
-            "Speakers",
-            "Dot Matrix Printers",
-            "16 Port Network Switch",
-        ]
 
         non_editable_cols = [
             "Sr.",
@@ -183,9 +173,10 @@ if df is not None:
             elif any(
                 target.lower() in col_name.lower() for target in target_columns
             ):
+              # જે તે શાળાની પોતાની ઓરિજિનલ લિમિટ જ Max તરીકે લેવી
               max_val = st.session_state["original_limits"][
                   current_school_code
-              ].get(col_name, 9999)
+              ].get(col_name, 0)
               current_val = int(val) if val.isdigit() else 0
 
               updated_values[col_name] = st.number_input(
@@ -206,24 +197,28 @@ if df is not None:
         if submit:
           error_occurred = False
 
-          # ૧. ચેક કરો કે કોઈ ટેક્સ્ટ બોક્સ ખાલી તો નથી ને (Compulsory Check)
+          # ૧. ખાલી ખાના ચેક કરવા
           for col_name, new_val in updated_values.items():
             if not any(
                 ne.lower() in col_name.lower() for ne in non_editable_cols
             ):
               if (
                   str(new_val).strip() == "" or str(new_val).strip() == "None"
-              ):  # Selectbox માં ખાલી ઓપ્શન પણ ચેક થશે
-                st.error(f"❌ ભૂલ: '{col_name}' ખાલી રાખી શકાતું નથી. આ માહિતી ભરવી ફરજિયાત છે!")
+              ):
+                st.error(
+                    f"❌ ભૂલ: '{col_name}' ખાલી રાખી શકાતું નથી. આ માહિતી ભરવી"
+                    " ફરજિયાત છે!"
+                )
                 error_occurred = True
 
-          # ૨. ઓરિજિનલ મેક્સ લિમિટ કરતાં મોટી વેલ્યુ ન હોય તેની ચકાસણી
+          # ૨. ઓરિજિનલ લિમિટ સાથે ચોખ્ખી સરખામણી
           if not error_occurred:
             school_limits = st.session_state["original_limits"][
                 current_school_code
             ]
             for col_name, max_limit in school_limits.items():
               entered_val = int(updated_values[col_name])
+              # જો દાખલ કરેલી રકમ ઓરિજિનલ લિમિટ કરતાં મોટી હોય તો જ એરર આપવી
               if entered_val > max_limit:
                 st.error(
                     f"❌ ભૂલ: '{col_name}' માં વધુમાં વધુ (Max) {max_limit} જ વેલ્યુ"
@@ -232,7 +227,7 @@ if df is not None:
                 )
                 error_occurred = True
 
-          # ૩. જો બધું જ બરાબર હોય તો જ ડેટાબેઝમાં સેવ કરો
+          # ૩. બધું બરાબર હોય તો સેવ કરવું
           if not error_occurred:
             for col_name, new_val in updated_values.items():
               if not any(
