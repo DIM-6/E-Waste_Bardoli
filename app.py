@@ -3,7 +3,7 @@ import sqlite3
 import pandas as pd
 import streamlit as st
 
-st.set_page_config(page_title="SURAT eWaste Survey 2026-27", layout="wide")
+st.set_page_config(page_title="SURAT eWaste Survey 2026-27", layout="centered")
 
 st.title("🏫 SURAT eWaste Survey Portal")
 
@@ -12,7 +12,7 @@ tab1, tab2 = st.tabs(["💻 CAL-LAB", "📚 Gyankunj E-Waste"])
 
 
 # ---------------------------------------------------------
-# ફંક્શન: જે તે ટેબ માટે ડેટા હેન્ડલ કરવા માટે (સાઇડબાર વગર)
+# ફંક્શન: જે તે ટેબ માટે ડેટા હેન્ડલ કરવા માટે (મોબાઈલ ફ્રેન્ડલી)
 # ---------------------------------------------------------
 def handle_survey_portal(tab_name, db_file, default_file_msg):
   st.header(f"📊 {tab_name} Survey Portal")
@@ -77,7 +77,7 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
     if not code_col:
       code_col = df.columns[4]
 
-    # સર્વે સ્ટેટસ (હવે મેઈન સ્ક્રીન પર દેખાશે)
+    # સર્વે સ્ટેટસ (મોબાઈલ ફ્રેન્ડલી મેટ્રિક્સ)
     total_schools = len(df)
     completed_schools = (
         len(df[df["Status"] == "Completed"])
@@ -87,13 +87,13 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
     pending_schools = total_schools - completed_schools
 
     col_stat1, col_stat2, col_stat3 = st.columns(3)
-    col_stat1.metric("કુલ શાળાઓ", total_schools)
-    col_stat2.metric("🟢 પૂર્ણ થયેલ (Completed)", completed_schools)
-    col_stat3.metric("🟡 બાકી (Pending)", pending_schools)
+    col_stat1.metric("કુલ", total_schools)
+    col_stat2.metric("🟢 પૂર્ણ", completed_schools)
+    col_stat3.metric("🟡 બાકી", pending_schools)
 
     st.markdown("---")
 
-    # School Code સર્ચ કરવા માટેનું ઇનપુટ બોક્સ (ટેબની બરાબર નીચે)
+    # School Code સર્ચ કરવા માટેનું ઇનપુટ બોક્સ
     school_code_input = st.text_input(
         f"🔍 School Code નાખો ({tab_name}):", key=f"input_code_{tab_name}"
     )
@@ -157,8 +157,8 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
               df.columns[5],
           )
           st.subheader(f"શાળાનું નામ: {row.get(school_name_col, 'N/A')}")
+          st.markdown("---")
 
-          cols = st.columns(3)
           updated_values = {}
 
           non_editable_cols = [
@@ -171,54 +171,52 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
               "Status",
           ]
 
+          # મોબાઇલ ફ્રેન્ડલી બનાવવા માટે ૧ જ કોલમ રાખી છે જેથી બધા બોક્સ ઉપર-નીચે લાઇનસર આવે
           for i, col_name in enumerate(df.columns):
             if col_name == "Status":
               continue
-            col_target = cols[i % 3]
             val = str(row[col_name]) if row[col_name] != "nan" else ""
 
-            with col_target:
-              if any(ne.lower() in col_name.lower() for ne in non_editable_cols):
-                st.text_input(
-                    str(col_name),
-                    value=val,
-                    disabled=True,
-                    key=f"{tab_name}_input_{i}",
-                )
-                updated_values[col_name] = val
-              elif "૨૦૧૧" in col_name or "2011" in col_name or "લેબ" in col_name:
-                options = ["", "હા-૧", "ના-ર"]
-                default_idx = options.index(val) if val in options else 0
-                updated_values[col_name] = st.selectbox(
-                    f"{col_name} (રજિસ્ટર)",
-                    options=options,
-                    index=default_idx,
-                    key=f"{tab_name}_input_{i}",
-                )
-              elif any(
-                  k.lower() in col_name.lower() for k in target_keywords
-              ):
-                max_val = st.session_state[session_key_limits][
-                    current_school_code
-                ].get(col_name, 0)
-                current_val = int(val) if val.isdigit() else 0
+            if any(ne.lower() in col_name.lower() for ne in non_editable_cols):
+              st.text_input(
+                  str(col_name),
+                  value=val,
+                  disabled=True,
+                  key=f"{tab_name}_input_{i}",
+              )
+              updated_values[col_name] = val
+            elif "૨૦૧૧" in col_name or "2011" in col_name or "લેબ" in col_name:
+              options = ["", "હા-૧", "ના-ર"]
+              default_idx = options.index(val) if val in options else 0
+              updated_values[col_name] = st.selectbox(
+                  f"{col_name} (રજિસ્ટર)",
+                  options=options,
+                  index=default_idx,
+                  key=f"{tab_name}_input_{i}",
+              )
+            elif any(k.lower() in col_name.lower() for k in target_keywords):
+              max_val = st.session_state[session_key_limits][
+                  current_school_code
+              ].get(col_name, 0)
+              current_val = int(val) if val.isdigit() else 0
 
-                updated_values[col_name] = st.number_input(
-                    f"{col_name} (Max allowed: {max_val})",
-                    min_value=0,
-                    max_value=99999,
-                    value=current_val,
-                    step=1,
-                    key=f"{tab_name}_input_{i}",
-                )
-              else:
-                updated_values[col_name] = st.text_input(
-                    f"{col_name} (ફરજિયાત)",
-                    value=val,
-                    key=f"{tab_name}_input_{i}",
-                )
+              updated_values[col_name] = st.number_input(
+                  f"{col_name} (Max allowed: {max_val})",
+                  min_value=0,
+                  max_value=99999,
+                  value=current_val,
+                  step=1,
+                  key=f"{tab_name}_input_{i}",
+              )
+            else:
+              updated_values[col_name] = st.text_input(
+                  f"{col_name} (ફરજિયાત)",
+                  value=val,
+                  key=f"{tab_name}_input_{i}",
+              )
 
-          submit = st.form_submit_button("💾 માહિતી સેવ કરો")
+          st.markdown("---")
+          submit = st.form_submit_button("💾 માહિતી સેવ કરો", use_container_width=True)
           form_submitted = submit
 
         if form_submitted:
@@ -274,7 +272,7 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
       else:
         st.warning("આવા School Code વાળી કોઈ શાળા મળતી નથી.")
     else:
-      st.info(f"👈 કૃપા કરીને ઉપર School Code દાખલ કરો.")
+      st.info(f"👈 ઉપર School Code દાખલ કરો.")
 
 
 # ---------------------------------------------------------
