@@ -77,7 +77,7 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
     if not code_col:
       code_col = df.columns[4]
 
-    # કુલ, પૂર્ણ અને બાકીની વિગતો એક જ રો (Line) માં મેટ્રિક તરીકે (ડાર્ક/લાઇટ થીમ ફ્રેન્ડલી)
+    # કુલ, પૂર્ણ અને બાકીની વિગતો એક જ રો માં ટેબલ ફોર્મેટમાં (મોબાઈલ અને ડાર્ક/લાઇટ થીમ ફ્રેન્ડલી)
     total_schools = len(df)
     completed_schools = (
         len(df[df["Status"] == "Completed"])
@@ -86,10 +86,23 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
     )
     pending_schools = total_schools - completed_schools
 
-    m1, m2, m3 = st.columns(3)
-    m1.metric(label="કુલ શાળાઓ", value=total_schools)
-    m2.metric(label="🟢 પૂર્ણ થયેલ", value=completed_schools)
-    m3.metric(label="🟡 બાકી", value=pending_schools)
+    st.markdown(
+        f"""
+        <table style="width:100%; text-align:center; border-collapse: collapse; margin-bottom: 15px; font-size: 14px;">
+          <tr style="border-bottom: 2px solid #ccc;">
+            <th style="padding: 8px;">કુલ શાળાઓ</th>
+            <th style="padding: 8px;">🟢 પૂર્ણ થયેલ</th>
+            <th style="padding: 8px;">🟡 બાકી</th>
+          </tr>
+          <tr>
+            <td style="padding: 8px; font-weight: bold; font-size: 16px;">{total_schools}</td>
+            <td style="padding: 8px; font-weight: bold; font-size: 16px; color: #28a745;">{completed_schools}</td>
+            <td style="padding: 8px; font-weight: bold; font-size: 16px; color: #ffc107;">{pending_schools}</td>
+          </tr>
+        </table>
+        """,
+        unsafe_allow_html=True,
+    )
 
     st.markdown("---")
 
