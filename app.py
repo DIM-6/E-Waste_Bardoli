@@ -6,12 +6,16 @@ st.set_page_config(page_title="SURAT eWaste Survey 2026-27", layout="wide")
 
 st.title("🏫 SURAT eWaste Survey - School Data Update Form")
 
-file_path = "/home/dharmesh/E-Waste/E-Waste_Sch.ods"
+# ક્લાઉડ પર ફાઇલ અપલોડ કરવા માટેનું યુઝર ઇન્ટરફેસ
+uploaded_file = st.file_uploader(
+    "કૃપા કરીને તમારી 'E-Waste_Sch.ods' ફાઇલ અહીં અપલોડ કરો",
+    type=["ods", "xlsx"],
+)
 
-
-def load_data(path):
-  if os.path.exists(path):
-    xls = pd.ExcelFile(path, engine="odf")
+df = None
+if uploaded_file is not None:
+  try:
+    xls = pd.ExcelFile(uploaded_file, engine="odf")
     sheet_names = xls.sheet_names
 
     matched_sheet = None
@@ -21,25 +25,16 @@ def load_data(path):
         break
 
     target_sheet = matched_sheet if matched_sheet else sheet_names[0]
-    st.sidebar.info(f"ઓપન કરેલી શીટ: {target_sheet}")
+    st.sidebar.success(f"ઓપન કરેલી શીટ: {target_sheet}")
 
-    return pd.read_excel(path, sheet_name=target_sheet, header=0, engine="odf")
-  return None
-
-
-df = load_data(file_path)
-
-if df is None:
-  uploaded_file = st.file_uploader(
-      "E-Waste_Sch.ods ફાઇલ અપલોડ કરો", type=["ods", "xlsx"]
-  )
-  if uploaded_file is not None:
+    df = pd.read_excel(uploaded_file, sheet_name=target_sheet, header=0)
+  except Exception as e:
+    # જો odfpy વગર XLSX હોય તો
     df = pd.read_excel(uploaded_file, sheet_name=0, header=0)
 
 if df is not None:
   df.columns = [str(c).strip() for c in df.columns]
 
-  # બધી ન્યુમેરિક કિંમતોમાંથી .0 દૂર કરવા માટે
   for col in df.columns:
     df[col] = (
         df[col]
@@ -89,7 +84,6 @@ if df is not None:
             "16 Port Network Switch",
         ]
 
-        # જે કૉલમ્સ એડિટ ન થવા જોઈએ (Sr. થી School Name સુધીના)
         non_editable_cols = [
             "Sr.",
             "District",
@@ -104,26 +98,19 @@ if df is not None:
           val = str(row[col_name]) if row[col_name] != "nan" else ""
 
           with col_target:
-            # ૧. જો કૉલમ Sr. થી School Name સુધીની હોય તો તેને માત્ર જોઈ શકાય તેવી (disabled) રાખવી
             if any(
                 ne.lower() in col_name.lower() for ne in non_editable_cols
             ):
               st.text_input(
                   str(col_name), value=val, disabled=True, key=f"input_{i}"
               )
-              updated_values[
-                  col_name
-              ] = val  # જૂનો ડેટા જ સુરક્ષિત રહે તે માટે
-
-            # ૨. લેબ ઉપલબ્ધ છે કે નહીં તે માટે ડ્રોપડાઉન
+              updated_values[col_name] = val
             elif "૨૦૧૧" in col_name or "2011" in col_name or "લેબ" in col_name:
               options = ["", "હા-૧", "ના-ર"]
               default_idx = options.index(val) if val in options else 0
               updated_values[col_name] = st.selectbox(
                   str(col_name), options=options, index=default_idx, key=f"input_{i}"
               )
-
-            # ૩. ડિવાઇસની સંખ્યા માટે નંબર ઇનપુટ (મૂળ આંકડાથી વધુ નહીં)
             elif any(
                 target.lower() in col_name.lower() for target in target_columns
             ):
@@ -140,7 +127,6 @@ if df is not None:
                   key=f"input_{i}",
               )
             else:
-              # બાકીના અન્ય ફીલ્ડ્સ માટે સામાન્ય ટેક્સ્ટ ઇનપુટ
               updated_values[col_name] = st.text_input(
                   str(col_name), value=val, key=f"input_{i}"
               )
@@ -157,23 +143,28 @@ if df is not None:
 
           if not error_occurred:
             for col_name, new_val in updated_values.items():
-              # નોન-એડિટેબલ કૉલમ્સ સિવાયના ડેટા જ અપડેટ કરવા
               if not any(
                   ne.lower() in col_name.lower() for ne in non_editable_cols
               ):
                 df.loc[idx, col_name] = str(new_val)
 
-            try:
-              output_file = "SURAT_eWaste_Updated.xlsx"
-              df.to_excel(output_file, index=False)
-              st.success(
-                  "માહિતી સફળતાપૂર્વક અપડેટ થઈ ગઈ છે અને ફાઇલમાં સેવ થઈ ગઈ છે!"
+            # યુઝર માટે ડાઉનલોડ બટન આપવું જેથી તે અપડેટ થયેલી ફાઇલ ડાઉનલોડ કરી શકે
+            output_file = "SURAT_eWaste_Updated.xlsx"
+            df.to_excel(output_file, index=False)
+            st.success("માહિતી સફળતાપૂર્વક અપડેટ થઈ ગઈ છે!")
+
+            with open(output_file, "rb") as f:
+              st.download_button(
+                  label="📥 અપડેટ કરેલી એક્સેલ ફાઇલ ડાઉનલોડ કરો",
+                  data=f,
+                  file_name="SURAT_eWaste_Updated.xlsx",
+                  mime=(
+                      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  ),
               )
-            except Exception as e:
-              st.error(f"સેવ કરતી વખતે ભૂલ આવી: {e}")
     else:
       st.warning("આવા School Code વાળી કોઈ શાળા મળતી નથી.")
   else:
     st.info("👈 કૃપા કરીને ડાબી બાજુના બોક્સમાં School Code દાખલ કરો.")
 else:
-  st.warning("કૃપા કરીને ફાઇલ પાથ ચકાસો અથવા ફાઇલ અપલોડ કરો.")
+  st.warning("કૃપા કરીને તમારી `.ods` અથવા `.xlsx` ફાઇલ ઉપર અપલોડ કરો.")
