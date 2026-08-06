@@ -179,34 +179,34 @@ if df is not None:
 
         submit = st.form_submit_button("💾 માહિતી સેવ કરો")
 
-      if submit:
-        error_occurred = False
+        # ફોર્મની અંદર બટનની બરાબર નીચે જ સબમિટ લોજિક અને મેસેજ
+        if submit:
+          error_occurred = False
 
-        for col_name, max_limit in original_max_values.items():
-          entered_val = int(updated_values[col_name])
-          if entered_val > max_limit:
-            st.error(
-                f"ભૂલ: '{col_name}' માં જૂની વેલ્યુ ({max_limit}) કરતાં મોટી વેલ્યુ"
-                f" ({entered_val}) ભરી શકાતી નથી!"
-            )
-            error_occurred = True
+          for col_name, max_limit in original_max_values.items():
+            entered_val = int(updated_values[col_name])
+            if entered_val > max_limit:
+              st.error(
+                  f"ભૂલ: '{col_name}' માં જૂની વેલ્યુ ({max_limit}) કરતાં મોટી વેલ્યુ"
+                  f" ({entered_val}) ભરી શકાતી નથી!"
+              )
+              error_occurred = True
 
-        if not error_occurred:
-          for col_name, new_val in updated_values.items():
-            if not any(
-                ne.lower() in col_name.lower() for ne in non_editable_cols
-            ):
-              df.loc[idx, col_name] = str(new_val)
+          if not error_occurred:
+            for col_name, new_val in updated_values.items():
+              if not any(
+                  ne.lower() in col_name.lower() for ne in non_editable_cols
+              ):
+                df.loc[idx, col_name] = str(new_val)
 
-          df.loc[idx, "Status"] = "Completed"
+            df.loc[idx, "Status"] = "Completed"
 
-          conn = sqlite3.connect(db_file)
-          df.to_sql("school_data", conn, if_exists="replace", index=False)
-          conn.close()
+            conn = sqlite3.connect(db_file)
+            df.to_sql("school_data", conn, if_exists="replace", index=False)
+            conn.close()
 
-          st.success("Data is updated successfully")
-          st.balloons()
-          st.rerun()
+            st.success("Data is updated successfully")
+            st.balloons()
 
     else:
       st.warning("આવા School Code વાળી કોઈ શાળા મળતી નથી.")
