@@ -109,13 +109,18 @@ if df is not None:
           "16 Port Network Switch",
       ]
 
-      st.session_state["original_limits"][current_school_code] = {}
-      for col_name in df.columns:
-        if any(t.lower() in col_name.lower() for t in target_columns):
-          val = str(row[col_name]).strip()
-          st.session_state["original_limits"][current_school_code][col_name] = (
-              int(val) if val.isdigit() else 0
-          )
+      # -------------------------------------------------------------
+      # મહત્ત્વનું સુધારો: જો આ શાળાની ઓરિજિનલ લિમિટ એકવાર સેટ થઈ ગઈ હોય, 
+      # તો તે ક્યારેય બદલાવી કે ઓવરરાઈટ થવી ન જોઈએ!
+      # -------------------------------------------------------------
+      if current_school_code not in st.session_state["original_limits"]:
+        st.session_state["original_limits"][current_school_code] = {}
+        for col_name in df.columns:
+          if any(t.lower() in col_name.lower() for t in target_columns):
+            val = str(row[col_name]).strip()
+            st.session_state["original_limits"][current_school_code][col_name] = (
+                int(val) if val.isdigit() else 0
+            )
 
       current_status = str(row.get("Status", "Pending"))
       if current_status.strip() == "Completed":
@@ -172,6 +177,7 @@ if df is not None:
             elif any(
                 target.lower() in col_name.lower() for target in target_columns
             ):
+              # કાયમી લોક થયેલી ઓરિજિનલ લિમિટ જ હંમેશા Max તરીકે દેખાશે
               max_val = st.session_state["original_limits"][
                   current_school_code
               ].get(col_name, 0)
@@ -191,13 +197,9 @@ if df is not None:
               )
 
         submit = st.form_submit_button("💾 માહિતી સેવ કરો")
-
-        # ફોર્મની અંદર જ સેવ સ્ટેટસ સ્ટોર કરવા માટે કામચલાઉ વેરિયેબલ
         form_submitted = submit
 
-      # ==========================================
-      # ફોર્મની બરાબર બહાર (નીચે) સબમિટ પ્રોસેસ અને મેસેજ
-      # ==========================================
+      # ફોર્મની બહાર સબમિટ અને મેસેજ લોજિક
       if form_submitted:
         error_occurred = False
 
@@ -211,7 +213,7 @@ if df is not None:
               )
               error_occurred = True
 
-        # ૨. ઓરિજિનલ લિમિટ સાથે સરખામણી
+        # ૨. કાયમી ઓરિજિનલ લિમિટ સાથે સરખામણી
         if not error_occurred:
           school_limits = st.session_state["original_limits"][
               current_school_code
@@ -226,7 +228,7 @@ if df is not None:
               )
               error_occurred = True
 
-        # ૩. બધું બરાબર હોય તો ડેટાબેઝમાં સેવ કરવું અને બટનની નીચે મેસેજ બતાવવો
+        # ૩. સેવ કરવું અને બટનની નીચે મેસેજ બતાવવો
         if not error_occurred:
           for col_name, new_val in updated_values.items():
             if not any(ne.lower() in col_name.lower() for ne in non_editable_cols):
@@ -238,7 +240,6 @@ if df is not None:
           df.to_sql("school_data", conn, if_exists="replace", index=False)
           conn.close()
 
-          # હવે મેસેજ બરાબર બટનની નીચે જ દેખાશે
           st.success("Data is updated successfully")
           st.balloons()
 
