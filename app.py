@@ -109,12 +109,10 @@ if df is not None:
           "16 Port Network Switch",
       ]
 
-      # દર વખતે આ શાળાની સાચી ઓરિજિનલ લિમિટ સેટ કરવી (તમામ સાધનો માટે)
       st.session_state["original_limits"][current_school_code] = {}
       for col_name in df.columns:
         if any(t.lower() in col_name.lower() for t in target_columns):
           val = str(row[col_name]).strip()
-          # જો વેલ્યુ આંકડાકીય હોય તો જ ઇન્ટરજ લેવી, નહીંતર 0
           st.session_state["original_limits"][current_school_code][col_name] = (
               int(val) if val.isdigit() else 0
           )
@@ -130,6 +128,7 @@ if df is not None:
             "⚠️ આ શાળાની માહિતી હજુ ભરવાની બાકી છે (Pending)."
         )
 
+      # ફોર્મ શરૂ થાય છે
       with st.form("ewaste_form"):
         school_name_col = next(
             (c for c in df.columns if "school name" in c.lower()), df.columns[5]
@@ -173,7 +172,6 @@ if df is not None:
             elif any(
                 target.lower() in col_name.lower() for target in target_columns
             ):
-              # જે તે શાળાની પોતાની ઓરિજિનલ લિમિટ જ Max તરીકે લેવી
               max_val = st.session_state["original_limits"][
                   current_school_code
               ].get(col_name, 0)
@@ -194,56 +192,55 @@ if df is not None:
 
         submit = st.form_submit_button("💾 માહિતી સેવ કરો")
 
-        if submit:
-          error_occurred = False
+        # ફોર્મની અંદર જ સેવ સ્ટેટસ સ્ટોર કરવા માટે કામચલાઉ વેરિયેબલ
+        form_submitted = submit
 
-          # ૧. ખાલી ખાના ચેક કરવા
+      # ==========================================
+      # ફોર્મની બરાબર બહાર (નીચે) સબમિટ પ્રોસેસ અને મેસેજ
+      # ==========================================
+      if form_submitted:
+        error_occurred = False
+
+        # ૧. ખાલી ખાના ચેક કરવા
+        for col_name, new_val in updated_values.items():
+          if not any(ne.lower() in col_name.lower() for ne in non_editable_cols):
+            if str(new_val).strip() == "" or str(new_val).strip() == "None":
+              st.error(
+                  f"❌ ભૂલ: '{col_name}' ખાલી રાખી શકાતું નથી. આ માહિતી ભરવી"
+                  " ફરજિયાત છે!"
+              )
+              error_occurred = True
+
+        # ૨. ઓરિજિનલ લિમિટ સાથે સરખામણી
+        if not error_occurred:
+          school_limits = st.session_state["original_limits"][
+              current_school_code
+          ]
+          for col_name, max_limit in school_limits.items():
+            entered_val = int(updated_values[col_name])
+            if entered_val > max_limit:
+              st.error(
+                  f"❌ ભૂલ: '{col_name}' માં વધુમાં વધુ (Max) {max_limit} જ વેલ્યુ"
+                  f" હોઈ શકે છે. તમે તેનાથી મોટી ({entered_val}) વેલ્યુ ભરી"
+                  " છે!"
+              )
+              error_occurred = True
+
+        # ૩. બધું બરાબર હોય તો ડેટાબેઝમાં સેવ કરવું અને બટનની નીચે મેસેજ બતાવવો
+        if not error_occurred:
           for col_name, new_val in updated_values.items():
-            if not any(
-                ne.lower() in col_name.lower() for ne in non_editable_cols
-            ):
-              if (
-                  str(new_val).strip() == "" or str(new_val).strip() == "None"
-              ):
-                st.error(
-                    f"❌ ભૂલ: '{col_name}' ખાલી રાખી શકાતું નથી. આ માહિતી ભરવી"
-                    " ફરજિયાત છે!"
-                )
-                error_occurred = True
+            if not any(ne.lower() in col_name.lower() for ne in non_editable_cols):
+              df.loc[idx, col_name] = str(new_val)
 
-          # ૨. ઓરિજિનલ લિમિટ સાથે ચોખ્ખી સરખામણી
-          if not error_occurred:
-            school_limits = st.session_state["original_limits"][
-                current_school_code
-            ]
-            for col_name, max_limit in school_limits.items():
-              entered_val = int(updated_values[col_name])
-              # જો દાખલ કરેલી રકમ ઓરિજિનલ લિમિટ કરતાં મોટી હોય તો જ એરર આપવી
-              if entered_val > max_limit:
-                st.error(
-                    f"❌ ભૂલ: '{col_name}' માં વધુમાં વધુ (Max) {max_limit} જ વેલ્યુ"
-                    f" હોઈ શકે છે. તમે તેનાથી મોટી ({entered_val}) વેલ્યુ ભરી"
-                    " છે!"
-                )
-                error_occurred = True
+          df.loc[idx, "Status"] = "Completed"
 
-          # ૩. બધું બરાબર હોય તો સેવ કરવું
-          if not error_occurred:
-            for col_name, new_val in updated_values.items():
-              if not any(
-                  ne.lower() in col_name.lower() for ne in non_editable_cols
-              ):
-                df.loc[idx, col_name] = str(new_val)
+          conn = sqlite3.connect(db_file)
+          df.to_sql("school_data", conn, if_exists="replace", index=False)
+          conn.close()
 
-            df.loc[idx, "Status"] = "Completed"
-
-            conn = sqlite3.connect(db_file)
-            df.to_sql("school_data", conn, if_exists="replace", index=False)
-            conn.close()
-
-            st.success("Data is updated successfully")
-            st.balloons()
-            st.rerun()
+          # હવે મેસેજ બરાબર બટનની નીચે જ દેખાશે
+          st.success("Data is updated successfully")
+          st.balloons()
 
     else:
       st.warning("આવા School Code વાળી કોઈ શાળા મળતી નથી.")
