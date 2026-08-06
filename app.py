@@ -7,13 +7,6 @@ st.set_page_config(page_title="SURAT eWaste Survey 2026-27", layout="wide")
 
 st.title("🏫 SURAT eWaste Survey Portal")
 
-# જો જૂની ewaste.db ફાઇલ હાજર હોય અને નવી ewaste_callab.db ન હોય, તો ઓટોમેટીક રીનેમ કરી દેવી
-if os.path.exists("ewaste.db") and not os.path.exists("ewaste_callab.db"):
-  try:
-    os.rename("ewaste.db", "ewaste_callab.db")
-  except Exception:
-    pass
-
 # બે અલગ ટેબ બનાવવી
 tab1, tab2 = st.tabs(["💻 CAL-LAB", "📚 Gyankunj E-Waste"])
 
@@ -32,10 +25,10 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
       return dframe
     return None
 
-  # જો ડેટાબેઝ ફાઇલ ન હોય તો અપલોડ ઓપ્શન આપવો
+  # જો ડેટાબેઝ ફાઇલ ન હોય તો જ અપલોડ ઓપ્શન આપવો
   if not os.path.exists(db_file):
     uploaded_file = st.file_uploader(
-        f"કૃપા કરીને '{default_file_msg}' અથવા SQLite ફાઇલ અહીં અપલોડ કરો",
+        f"કૃપા કરીને તમારી '{default_file_msg}' ફાઇલ અહીં અપલોડ કરો",
         type=["ods", "xlsx", "db"],
         key=f"uploader_{tab_name}",
     )
@@ -277,14 +270,10 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
 # ટેબ ૧: CAL-LAB માટે
 # ---------------------------------------------------------
 with tab1:
-  handle_survey_portal(
-      "CAL-LAB", "ewaste_callab.db", "E-Waste_Sch.ods (CAL-LAB)"
-  )
+  handle_survey_portal("CAL-LAB", "ewaste_callab.db", "E-Waste_Sch.ods")
 
 # ---------------------------------------------------------
 # ટેબ ૨: Gyankunj E-Waste માટે
 # ---------------------------------------------------------
 with tab2:
-  handle_survey_portal(
-      "Gyankunj", "ewaste_gyankunj.db", "E-Waste_GyanSch.ods (Gyankunj)"
-  )
+  handle_survey_portal("Gyankunj", "ewaste_gyankunj.db", "E-Waste_GyanSch.ods")
