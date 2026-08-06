@@ -92,6 +92,34 @@ if df is not None:
       st.success("શાળાની માહિતી સફળતાપૂર્વક મળી ગઈ છે!")
       idx = matched_indices[0]
       row = df.loc[idx]
+      current_school_code = str(row[code_col])
+
+      # ---------------------------------------------------------
+      # મહત્ત્વનું: દરેક શાળાની ઓરિજિનલ મેક્સ વેલ્યુ માત્ર પહેલીવાર જ સેવ કરો
+      # જેથી ક્યારેય ઓવરરાઈટ ન થાય!
+      # ---------------------------------------------------------
+      if "original_limits" not in st.session_state:
+        st.session_state["original_limits"] = {}
+
+      if current_school_code not in st.session_state["original_limits"]:
+        st.session_state["original_limits"][current_school_code] = {}
+        target_columns_check = [
+            "Standalone desktop computers",
+            "Shared computing host desktops",
+            "Computer with dual display 18.5\"LED Backlit",
+            '40" or higher LCD display with VGA splitter, external voltage stabilizer',
+            "Nodes of Shared Computing with Monitor, keyboard, Mouse",
+            "PC Sharing Kit",
+            "Speakers",
+            "Dot Matrix Printers",
+            "16 Port Network Switch",
+        ]
+        for col_name in df.columns:
+          if any(t.lower() in col_name.lower() for t in target_columns_check):
+            val = str(row[col_name])
+            st.session_state["original_limits"][current_school_code][
+                col_name
+            ] = (int(val) if val.isdigit() else 9999)
 
       current_status = str(row.get("Status", "Pending"))
       if current_status.strip() == "Completed":
@@ -112,7 +140,6 @@ if df is not None:
 
         cols = st.columns(3)
         updated_values = {}
-        original_max_values = {}
 
         target_columns = [
             "Standalone desktop computers",
@@ -160,8 +187,10 @@ if df is not None:
             elif any(
                 target.lower() in col_name.lower() for target in target_columns
             ):
-              max_val = int(val) if val.isdigit() else 9999
-              original_max_values[col_name] = max_val
+              # હંમેશા ઓરિજિનલ લિમિટ જ max_val તરીકે દેખાડવી
+              max_val = st.session_state["original_limits"][
+                  current_school_code
+              ].get(col_name, 9999)
               current_val = int(val) if val.isdigit() else 0
 
               updated_values[col_name] = st.number_input(
@@ -182,8 +211,11 @@ if df is not None:
         if submit:
           error_occurred = False
 
-          # ચકાસણી કરો કે જૂની વેલ્યુ કરતાં મોટી વેલ્યુ ભરાઈ છે કે નહીં
-          for col_name, max_limit in original_max_values.items():
+          # કાયમી ઓરિજિનલ લિમિટ સાથે જ ચકાસણી કરવી
+          school_limits = st.session_state["original_limits"][
+              current_school_code
+          ]
+          for col_name, max_limit in school_limits.items():
             entered_val = int(updated_values[col_name])
             if entered_val > max_limit:
               st.error(
@@ -193,7 +225,6 @@ if df is not None:
               )
               error_occurred = True
 
-          # જો કોઈ ભૂલ ન હોય તો જ સેવ થવા દો
           if not error_occurred:
             for col_name, new_val in updated_values.items():
               if not any(
