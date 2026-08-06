@@ -109,22 +109,33 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
         if session_key_limits not in st.session_state:
           st.session_state[session_key_limits] = {}
 
-        target_columns = [
-            "Standalone desktop computers",
-            "Shared computing host desktops",
-            "Computer with dual display 18.5\"LED Backlit",
-            '40" or higher LCD display with VGA splitter, external voltage stabilizer',
-            "Nodes of Shared Computing with Monitor, keyboard, Mouse",
-            "PC Sharing Kit",
-            "Speakers",
-            "Dot Matrix Printers",
-            "16 Port Network Switch",
+        # બંને ટેબ માટે કોમન અથવા સ્માર્ટ ટાર્ગેટ લિસ્ટ (જેમાં નંબર ઇનપુટ આવે છે)
+        # આનાથી CAL-LAB અને Gyankunj બંનેના તમામ ડિજિટલ સાધનો કવર થઈ જશે
+        target_keywords = [
+            "computer",
+            "desktop",
+            "display",
+            "node",
+            "kit",
+            "speaker",
+            "printer",
+            "switch",
+            "camera",
+            "router",
+            "laptop",
+            "tablet",
+            "projector",
+            "server",
+            "UPS",
+            "scanner",
+            "device",
         ]
 
         if current_school_code not in st.session_state[session_key_limits]:
           st.session_state[session_key_limits][current_school_code] = {}
           for col_name in df.columns:
-            if any(t.lower() in col_name.lower() for t in target_columns):
+            # જો કોલમના નામમાં કોઈપણ ડિજિટલ સાધન કે ઇક્વિપમેન્ટનું નામ હશે તો તેની ઓરિજિનલ વેલ્યુ કેદ થઈ જશે
+            if any(k.lower() in col_name.lower() for k in target_keywords):
               val = str(row[col_name]).strip()
               st.session_state[session_key_limits][current_school_code][
                   col_name
@@ -186,7 +197,7 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
                     key=f"{tab_name}_input_{i}",
                 )
               elif any(
-                  target.lower() in col_name.lower() for target in target_columns
+                  k.lower() in col_name.lower() for k in target_keywords
               ):
                 max_val = st.session_state[session_key_limits][
                     current_school_code
@@ -234,14 +245,15 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
                 current_school_code
             ]
             for col_name, max_limit in school_limits.items():
-              entered_val = int(updated_values[col_name])
-              if entered_val > max_limit:
-                st.error(
-                    f"❌ ભૂલ: '{col_name}' માં વધુમાં વધુ (Max) {max_limit} જ વેલ્યુ"
-                    f" હોઈ શકે છે. તમે તેનાથી મોટી ({entered_val}) વેલ્યુ ભરી"
-                    " છે!"
-                )
-                error_occurred = True
+              if col_name in updated_values:
+                entered_val = int(updated_values[col_name])
+                if entered_val > max_limit:
+                  st.error(
+                      f"❌ ભૂલ: '{col_name}' માં વધુમાં વધુ (Max) {max_limit} જ"
+                      f" વેલ્યુ હોઈ શકે છે. તમે તેનાથી મોટી ({entered_val})"
+                      " વેલ્યુ ભરી છે!"
+                  )
+                  error_occurred = True
 
           # ૩. સેવ કરવું
           if not error_occurred:
