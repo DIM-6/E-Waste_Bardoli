@@ -29,7 +29,6 @@ if uploaded_file is not None:
 
     df = pd.read_excel(uploaded_file, sheet_name=target_sheet, header=0)
   except Exception as e:
-    # જો odfpy વગર XLSX હોય તો
     df = pd.read_excel(uploaded_file, sheet_name=0, header=0)
 
 if df is not None:
@@ -148,7 +147,6 @@ if df is not None:
               ):
                 df.loc[idx, col_name] = str(new_val)
 
-            # યુઝર માટે ડાઉનલોડ બટન આપવું જેથી તે અપડેટ થયેલી ફાઇલ ડાઉનલોડ કરી શકે
             output_file = "SURAT_eWaste_Updated.xlsx"
             df.to_excel(output_file, index=False)
             st.success("માહિતી સફળતાપૂર્વક અપડેટ થઈ ગઈ છે!")
