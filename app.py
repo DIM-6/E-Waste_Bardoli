@@ -12,7 +12,7 @@ tab1, tab2 = st.tabs(["💻 CAL-LAB", "📚 Gyankunj E-Waste"])
 
 
 # ---------------------------------------------------------
-# ફંક્શન: જે તે ટેબ માટે ડેટા હેન્ડલ કરવા માટે (મોબાઈલ ફ્રેન્ડલી)
+# ફંક્શન: જે તે ટેબ માટે ડેટા હેન્ડલ કરવા માટે
 # ---------------------------------------------------------
 def handle_survey_portal(tab_name, db_file, default_file_msg):
   st.header(f"📊 {tab_name} Survey Portal")
@@ -77,7 +77,7 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
     if not code_col:
       code_col = df.columns[4]
 
-    # સર્વે સ્ટેટસ (મોબાઈલ ફ્રેન્ડલી મેટ્રિક્સ)
+    # કુલ, પૂર્ણ અને બાકીની વિગતો એક જ રો (Line) માં ટેબલ ફોર્મેટમાં બતાવવા માટે
     total_schools = len(df)
     completed_schools = (
         len(df[df["Status"] == "Completed"])
@@ -86,10 +86,17 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
     )
     pending_schools = total_schools - completed_schools
 
-    col_stat1, col_stat2, col_stat3 = st.columns(3)
-    col_stat1.metric("કુલ", total_schools)
-    col_stat2.metric("🟢 પૂર્ણ", completed_schools)
-    col_stat3.metric("🟡 બાકી", pending_schools)
+    # એક જ રો માં આકર્ષક રીતે દેખાય તે માટે HTML ટેબલ અથવા કોલમનો ઉપયોગ
+    st.markdown(
+        f"""
+        <div style="display: flex; justify-content: space-around; background-color: #f0f2f6; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
+            <div><b>કુલ શાળાઓ:</b><br><span style="font-size: 18px; color: #000;">{total_schools}</span></div>
+            <div><b>🟢 પૂર્ણ થયેલ:</b><br><span style="font-size: 18px; color: green;">{completed_schools}</span></div>
+            <div><b>🟡 બાકી:</b><br><span style="font-size: 18px; color: orange;">{pending_schools}</span></div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     st.markdown("---")
 
@@ -171,7 +178,6 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
               "Status",
           ]
 
-          # મોબાઇલ ફ્રેન્ડલી બનાવવા માટે ૧ જ કોલમ રાખી છે જેથી બધા બોક્સ ઉપર-નીચે લાઇનસર આવે
           for i, col_name in enumerate(df.columns):
             if col_name == "Status":
               continue
