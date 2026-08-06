@@ -10,7 +10,7 @@ st.title("🏫 SURAT eWaste Survey - School Data Update Form")
 db_file = "ewaste.db"
 
 
-@st.cache_data
+# કેશ વગરનો ડેટા લોડ કરવાની પદ્ધતિ જેથી લેટેસ્ટ સ્ટેટસ હંમેશાં દેખાય
 def load_data_from_db():
   if os.path.exists(db_file):
     conn = sqlite3.connect(db_file)
@@ -35,7 +35,6 @@ if not os.path.exists(db_file):
     else:
       try:
         df = pd.read_excel(uploaded_file, sheet_name=0, header=0)
-        # જો Status કૉલમ ન હોય તો પહેલેથી જ 'Pending' ઉમેરી દેવું
         if "Status" not in df.columns:
           df["Status"] = "Pending"
         conn = sqlite3.connect(db_file)
@@ -51,7 +50,6 @@ df = load_data_from_db()
 if df is not None:
   df.columns = [str(c).strip() for c in df.columns]
 
-  # જો ડેટાબેઝમાં Status કૉલમ ન હોય તો તેને ઉમેરી દેવી
   if "Status" not in df.columns:
     df["Status"] = "Pending"
 
@@ -75,7 +73,6 @@ if df is not None:
   # ડાબી બાજુ ડેશબોર્ડ અને સ્ટેટસ જોવા માટે
   st.sidebar.header("📊 સર્વે સ્ટેટસ અને શાળા શોધો")
 
-  # કુલ શાળાઓ અને પેન્ડિંગ શાળાઓની માહિતી બતાવવી
   total_schools = len(df)
   completed_schools = (
       len(df[df["Status"] == "Completed"])
@@ -99,14 +96,16 @@ if df is not None:
       idx = matched_indices[0]
       row = df.loc[idx]
 
-      current_status = row.get("Status", "Pending")
-      if current_status == "Completed":
-        st.info(
-            "ℹ️ આ શાળાની માહિતી અગાઉ પૂર્ણ થઈ ગઈ છે. તમે ફરીથી અપડેટ કરી શકો"
-            " છો."
+      current_status = str(row.get("Status", "Pending"))
+      if current_status.strip() == "Completed":
+        st.success(
+            "✅ આ શાળાની માહિતી અગાઉ પૂર્ણ થઈ ગઈ છે (Completed). તમે ફરીથી"
+            " સુધારો કરી શકો છો."
         )
       else:
-        st.warning("⚠️ આ શાળાની માહિતી હજુ ભરવાની બાકી (Pending) છે.")
+        st.warning(
+            "⚠️ આ શાળાની માહિતી હજુ ભરવાની બાકી છે (Pending)."
+        )
 
       with st.form("ewaste_form"):
         school_name_col = next(
@@ -183,11 +182,9 @@ if df is not None:
 
         submit = st.form_submit_button("💾 માહિતી સેવ કરો")
 
-      # ફોર્મની બહાર સબમિટ લોજિક
       if submit:
         error_occurred = False
 
-        # જૂની વેલ્યુ કરતાં મોટી વેલ્યુ ન ભરાય તેની ચકાસણી
         for col_name, max_limit in original_max_values.items():
           entered_val = int(updated_values[col_name])
           if entered_val > max_limit:
@@ -204,34 +201,19 @@ if df is not None:
             ):
               df.loc[idx, col_name] = str(new_val)
 
-          # માહિતી સેવ થતાં જ સ્ટેટસ 'Completed' કરી દેવું
+          # ચોક્કસપણે સ્ટેટસ Completed કરવું
           df.loc[idx, "Status"] = "Completed"
 
-          # SQLite ડેટાબેઝમાં ડેટા અપડેટ કરવો
+          # ડેટાબેઝમાં સેવ કરવું
           conn = sqlite3.connect(db_file)
           df.to_sql("school_data", conn, if_exists="replace", index=False)
           conn.close()
 
-          st.success(
-              "માહિતી સફળતાપૂર્વक ડેટાબેઝમાં સેવ થઈ ગઈ છે અને સ્ટેટસ 'Completed'"
-              " થઈ ગયું છે!"
-          )
+          st.success("માહિતી સફળતાપૂર્વક સેવ થઈ ગઈ છે અને સ્ટેટસ 'Completed' થઈ ગયું છે!")
+          
+          # પેજ રીલોડ કરવા માટે જેથી નવું સ્ટેટસ તરત દેખાય
+          st.rerun()
 
-          st.session_state["updated_df"] = df
-          st.session_state["data_saved"] = True
-
-      if st.session_state.get("data_saved", False):
-        output_file = "SURAT_eWaste_Updated.xlsx"
-        current_df = st.session_state["updated_df"]
-        current_df.to_excel(output_file, index=False)
-
-        with open(output_file, "rb") as f:
-          st.download_button(
-              label="📥 અપડેટ કરેલી એક્સેલ ફાઇલ ડાઉનલોડ કરો",
-              data=f,
-              file_name="SURAT_eWaste_Updated.xlsx",
-              mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          )
     else:
       st.warning("આવા School Code વાળી કોઈ શાળા મળતી નથી.")
   else:
