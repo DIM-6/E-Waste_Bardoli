@@ -94,10 +94,6 @@ if df is not None:
       row = df.loc[idx]
       current_school_code = str(row[code_col])
 
-      # ---------------------------------------------------------
-      # મહત્ત્વનું: દરેક શાળાની ઓરિજિનલ મેક્સ વેલ્યુ માત્ર પહેલીવાર જ સેવ કરો
-      # જેથી ક્યારેય ઓવરરાઈટ ન થાય!
-      # ---------------------------------------------------------
       if "original_limits" not in st.session_state:
         st.session_state["original_limits"] = {}
 
@@ -179,7 +175,7 @@ if df is not None:
               options = ["", "હા-૧", "ના-ર"]
               default_idx = options.index(val) if val in options else 0
               updated_values[col_name] = st.selectbox(
-                  str(col_name),
+                  f"{col_name} (રજિસ્ટર)",
                   options=options,
                   index=default_idx,
                   key=f"input_{i}",
@@ -187,7 +183,6 @@ if df is not None:
             elif any(
                 target.lower() in col_name.lower() for target in target_columns
             ):
-              # હંમેશા ઓરિજિનલ લિમિટ જ max_val તરીકે દેખાડવી
               max_val = st.session_state["original_limits"][
                   current_school_code
               ].get(col_name, 9999)
@@ -203,7 +198,7 @@ if df is not None:
               )
             else:
               updated_values[col_name] = st.text_input(
-                  str(col_name), value=val, key=f"input_{i}"
+                  f"{col_name} (ફરજિયાત)", value=val, key=f"input_{i}"
               )
 
         submit = st.form_submit_button("💾 માહિતી સેવ કરો")
@@ -211,20 +206,33 @@ if df is not None:
         if submit:
           error_occurred = False
 
-          # કાયમી ઓરિજિનલ લિમિટ સાથે જ ચકાસણી કરવી
-          school_limits = st.session_state["original_limits"][
-              current_school_code
-          ]
-          for col_name, max_limit in school_limits.items():
-            entered_val = int(updated_values[col_name])
-            if entered_val > max_limit:
-              st.error(
-                  f"❌ ભૂલ: '{col_name}' માં વધુમાં વધુ (Max) {max_limit} જ વેલ્યુ"
-                  f" હોઈ શકે છે. તમે તેનાથી મોટી ({entered_val}) વેલ્યુ ભરી"
-                  " છે!"
-              )
-              error_occurred = True
+          # ૧. ચેક કરો કે કોઈ ટેક્સ્ટ બોક્સ ખાલી તો નથી ને (Compulsory Check)
+          for col_name, new_val in updated_values.items():
+            if not any(
+                ne.lower() in col_name.lower() for ne in non_editable_cols
+            ):
+              if (
+                  str(new_val).strip() == "" or str(new_val).strip() == "None"
+              ):  # Selectbox માં ખાલી ઓપ્શન પણ ચેક થશે
+                st.error(f"❌ ભૂલ: '{col_name}' ખાલી રાખી શકાતું નથી. આ માહિતી ભરવી ફરજિયાત છે!")
+                error_occurred = True
 
+          # ૨. ઓરિજિનલ મેક્સ લિમિટ કરતાં મોટી વેલ્યુ ન હોય તેની ચકાસણી
+          if not error_occurred:
+            school_limits = st.session_state["original_limits"][
+                current_school_code
+            ]
+            for col_name, max_limit in school_limits.items():
+              entered_val = int(updated_values[col_name])
+              if entered_val > max_limit:
+                st.error(
+                    f"❌ ભૂલ: '{col_name}' માં વધુમાં વધુ (Max) {max_limit} જ વેલ્યુ"
+                    f" હોઈ શકે છે. તમે તેનાથી મોટી ({entered_val}) વેલ્યુ ભરી"
+                    " છે!"
+                )
+                error_occurred = True
+
+          # ૩. જો બધું જ બરાબર હોય તો જ ડેટાબેઝમાં સેવ કરો
           if not error_occurred:
             for col_name, new_val in updated_values.items():
               if not any(
@@ -240,6 +248,7 @@ if df is not None:
 
             st.success("Data is updated successfully")
             st.balloons()
+            st.rerun()
 
     else:
       st.warning("આવા School Code વાળી કોઈ શાળા મળતી નથી.")
