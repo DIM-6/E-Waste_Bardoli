@@ -7,6 +7,13 @@ st.set_page_config(page_title="SURAT eWaste Survey 2026-27", layout="wide")
 
 st.title("🏫 SURAT eWaste Survey Portal")
 
+# જો જૂની ewaste.db ફાઇલ હાજર હોય અને નવી ewaste_callab.db ન હોય, તો ઓટોમેટીક રીનેમ કરી દેવી
+if os.path.exists("ewaste.db") and not os.path.exists("ewaste_callab.db"):
+  try:
+    os.rename("ewaste.db", "ewaste_callab.db")
+  except Exception:
+    pass
+
 # બે અલગ ટેબ બનાવવી
 tab1, tab2 = st.tabs(["💻 CAL-LAB", "📚 Gyankunj E-Waste"])
 
@@ -25,7 +32,7 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
       return dframe
     return None
 
-  # જો ડેટાબેઝ ફાઇલ ન હોય તો જ અપલોડ ઓપ્શન આપવો (માત્ર ૧ જ વાર પૂછશે)
+  # જો ડેટાબેઝ ફાઇલ ન હોય તો અપલોડ ઓપ્શન આપવો
   if not os.path.exists(db_file):
     uploaded_file = st.file_uploader(
         f"કૃપા કરીને '{default_file_msg}' અથવા SQLite ફાઇલ અહીં અપલોડ કરો",
