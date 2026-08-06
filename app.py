@@ -10,7 +10,6 @@ st.title("🏫 SURAT eWaste Survey - School Data Update Form")
 db_file = "ewaste.db"
 
 
-# કેશ વગરનો ડેટા લોડ કરવાની પદ્ધતિ જેથી લેટેસ્ટ સ્ટેટસ હંમેશાં દેખાય
 def load_data_from_db():
   if os.path.exists(db_file):
     conn = sqlite3.connect(db_file)
@@ -20,7 +19,6 @@ def load_data_from_db():
   return None
 
 
-# જો ડેટાબેઝ ફાઇલ ન હોય તો ફાઇલ અપલોડ કરવાનો ઓપ્શન આપવો
 if not os.path.exists(db_file):
   uploaded_file = st.file_uploader(
       "કૃપા કરીને તમારી 'E-Waste_Sch.ods' અથવા SQLite ફાઇલ અહીં અપલોડ કરો",
@@ -70,7 +68,6 @@ if df is not None:
   if not code_col:
     code_col = df.columns[4]
 
-  # ડાબી બાજુ ડેશબોર્ડ અને સ્ટેટસ જોવા માટે
   st.sidebar.header("📊 સર્વે સ્ટેટસ અને શાળા શોધો")
 
   total_schools = len(df)
@@ -201,17 +198,14 @@ if df is not None:
             ):
               df.loc[idx, col_name] = str(new_val)
 
-          # ચોક્કસપણે સ્ટેટસ Completed કરવું
           df.loc[idx, "Status"] = "Completed"
 
-          # ડેટાબેઝમાં સેવ કરવું
           conn = sqlite3.connect(db_file)
           df.to_sql("school_data", conn, if_exists="replace", index=False)
           conn.close()
 
-          st.success("માહિતી સફળતાપૂર્વક સેવ થઈ ગઈ છે અને સ્ટેટસ 'Completed' થઈ ગયું છે!")
-          
-          # પેજ રીલોડ કરવા માટે જેથી નવું સ્ટેટસ તરત દેખાય
+          st.success("Data is updated successfully")
+          st.balloons()
           st.rerun()
 
     else:
