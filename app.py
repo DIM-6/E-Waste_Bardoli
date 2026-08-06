@@ -165,9 +165,9 @@ if df is not None:
               current_val = int(val) if val.isdigit() else 0
 
               updated_values[col_name] = st.number_input(
-                  f"{col_name} (Max: {max_val})",
+                  f"{col_name} (Max allowed: {max_val})",
                   min_value=0,
-                  max_value=max_val,
+                  max_value=99999,
                   value=current_val,
                   step=1,
                   key=f"input_{i}",
@@ -179,19 +179,21 @@ if df is not None:
 
         submit = st.form_submit_button("💾 માહિતી સેવ કરો")
 
-        # ફોર્મની અંદર બટનની બરાબર નીચે જ સબમિટ લોજિક અને મેસેજ
         if submit:
           error_occurred = False
 
+          # ચકાસણી કરો કે જૂની વેલ્યુ કરતાં મોટી વેલ્યુ ભરાઈ છે કે નહીં
           for col_name, max_limit in original_max_values.items():
             entered_val = int(updated_values[col_name])
             if entered_val > max_limit:
               st.error(
-                  f"ભૂલ: '{col_name}' માં જૂની વેલ્યુ ({max_limit}) કરતાં મોટી વેલ્યુ"
-                  f" ({entered_val}) ભરી શકાતી નથી!"
+                  f"❌ ભૂલ: '{col_name}' માં વધુમાં વધુ (Max) {max_limit} જ વેલ્યુ"
+                  f" હોઈ શકે છે. તમે તેનાથી મોટી ({entered_val}) વેલ્યુ ભરી"
+                  " છે!"
               )
               error_occurred = True
 
+          # જો કોઈ ભૂલ ન હોય તો જ સેવ થવા દો
           if not error_occurred:
             for col_name, new_val in updated_values.items():
               if not any(
