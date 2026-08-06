@@ -12,7 +12,7 @@ tab1, tab2 = st.tabs(["💻 CAL-LAB", "📚 Gyankunj E-Waste"])
 
 
 # ---------------------------------------------------------
-# ફંક્શન: જે તે ટેબ માટે ડેટા હેન્ડલ કરવા માટે
+# ફંક્શન: જે તે ટેબ માટે ડેટા હેન્ડલ કરવા માટે (સાઇડબાર વગર)
 # ---------------------------------------------------------
 def handle_survey_portal(tab_name, db_file, default_file_msg):
   st.header(f"📊 {tab_name} Survey Portal")
@@ -77,8 +77,7 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
     if not code_col:
       code_col = df.columns[4]
 
-    st.sidebar.header(f"🔍 {tab_name} - સર્વે સ્ટેટસ")
-
+    # સર્વે સ્ટેટસ (હવે મેઈન સ્ક્રીન પર દેખાશે)
     total_schools = len(df)
     completed_schools = (
         len(df[df["Status"] == "Completed"])
@@ -87,13 +86,16 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
     )
     pending_schools = total_schools - completed_schools
 
-    st.sidebar.markdown(f"**કુલ શાળાઓ:** {total_schools}")
-    st.sidebar.markdown(f"🟢 **પૂર્ણ થયેલ (Completed):** {completed_schools}")
-    st.sidebar.markdown(f"🟡 **બાકી (Pending):** {pending_schools}")
-    st.sidebar.markdown("---")
+    col_stat1, col_stat2, col_stat3 = st.columns(3)
+    col_stat1.metric("કુલ શાળાઓ", total_schools)
+    col_stat2.metric("🟢 પૂર્ણ થયેલ (Completed)", completed_schools)
+    col_stat3.metric("🟡 બાકી (Pending)", pending_schools)
 
-    school_code_input = st.sidebar.text_input(
-        f"School Code નાખો ({tab_name}):", key=f"input_code_{tab_name}"
+    st.markdown("---")
+
+    # School Code સર્ચ કરવા માટેનું ઇનપુટ બોક્સ (ટેબની બરાબર નીચે)
+    school_code_input = st.text_input(
+        f"🔍 School Code નાખો ({tab_name}):", key=f"input_code_{tab_name}"
     )
 
     if school_code_input:
@@ -109,8 +111,6 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
         if session_key_limits not in st.session_state:
           st.session_state[session_key_limits] = {}
 
-        # બંને ટેબ માટે કોમન અથવા સ્માર્ટ ટાર્ગેટ લિસ્ટ (જેમાં નંબર ઇનપુટ આવે છે)
-        # આનાથી CAL-LAB અને Gyankunj બંનેના તમામ ડિજિટલ સાધનો કવર થઈ જશે
         target_keywords = [
             "computer",
             "desktop",
@@ -134,7 +134,6 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
         if current_school_code not in st.session_state[session_key_limits]:
           st.session_state[session_key_limits][current_school_code] = {}
           for col_name in df.columns:
-            # જો કોલમના નામમાં કોઈપણ ડિજિટલ સાધન કે ઇક્વિપમેન્ટનું નામ હશે તો તેની ઓરિજિનલ વેલ્યુ કેદ થઈ જશે
             if any(k.lower() in col_name.lower() for k in target_keywords):
               val = str(row[col_name]).strip()
               st.session_state[session_key_limits][current_school_code][
@@ -275,7 +274,7 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
       else:
         st.warning("આવા School Code વાળી કોઈ શાળા મળતી નથી.")
     else:
-      st.info(f"👈 કૃપા કરીને ડાબી બાજુના બોક્સમાં School Code દાખલ કરો.")
+      st.info(f"👈 કૃપા કરીને ઉપર School Code દાખલ કરો.")
 
 
 # ---------------------------------------------------------
