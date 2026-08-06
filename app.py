@@ -35,6 +35,9 @@ if not os.path.exists(db_file):
     else:
       try:
         df = pd.read_excel(uploaded_file, sheet_name=0, header=0)
+        # જો Status કૉલમ ન હોય તો પહેલેથી જ 'Pending' ઉમેરી દેવું
+        if "Status" not in df.columns:
+          df["Status"] = "Pending"
         conn = sqlite3.connect(db_file)
         df.to_sql("school_data", conn, if_exists="replace", index=False)
         conn.close()
@@ -48,13 +51,18 @@ df = load_data_from_db()
 if df is not None:
   df.columns = [str(c).strip() for c in df.columns]
 
+  # જો ડેટાબેઝમાં Status કૉલમ ન હોય તો તેને ઉમેરી દેવી
+  if "Status" not in df.columns:
+    df["Status"] = "Pending"
+
   for col in df.columns:
-    df[col] = (
-        df[col]
-        .astype(str)
-        .str.replace(r"\.0$", "", regex=True)
-        .replace("nan", "")
-    )
+    if col != "Status":
+      df[col] = (
+          df[col]
+          .astype(str)
+          .str.replace(r"\.0$", "", regex=True)
+          .replace("nan", "")
+      )
 
   code_col = None
   for col in df.columns:
@@ -64,7 +72,23 @@ if df is not None:
   if not code_col:
     code_col = df.columns[4]
 
-  st.sidebar.header("🔍 શાળા શોધો")
+  # ડાબી બાજુ ડેશબોર્ડ અને સ્ટેટસ જોવા માટે
+  st.sidebar.header("📊 સર્વે સ્ટેટસ અને શાળા શોધો")
+
+  # કુલ શાળાઓ અને પેન્ડિંગ શાળાઓની માહિતી બતાવવી
+  total_schools = len(df)
+  completed_schools = (
+      len(df[df["Status"] == "Completed"])
+      if "Status" in df.columns
+      else 0
+  )
+  pending_schools = total_schools - completed_schools
+
+  st.sidebar.markdown(f"**કુલ શાળાઓ:** {total_schools}")
+  st.sidebar.markdown(f"🟢 **પૂર્ણ થયેલ (Completed):** {completed_schools}")
+  st.sidebar.markdown(f"🟡 **બાકી (Pending):** {pending_schools}")
+  st.sidebar.markdown("---")
+
   school_code_input = st.sidebar.text_input("School Code નાખો:")
 
   if school_code_input:
@@ -74,6 +98,15 @@ if df is not None:
       st.success("શાળાની માહિતી સફળતાપૂર્વક મળી ગઈ છે!")
       idx = matched_indices[0]
       row = df.loc[idx]
+
+      current_status = row.get("Status", "Pending")
+      if current_status == "Completed":
+        st.info(
+            "ℹ️ આ શાળાની માહિતી અગાઉ પૂર્ણ થઈ ગઈ છે. તમે ફરીથી અપડેટ કરી શકો"
+            " છો."
+        )
+      else:
+        st.warning("⚠️ આ શાળાની માહિતી હજુ ભરવાની બાકી (Pending) છે.")
 
       with st.form("ewaste_form"):
         school_name_col = next(
@@ -104,9 +137,12 @@ if df is not None:
             "Village",
             "Sch. Code",
             "School Name",
+            "Status",
         ]
 
         for i, col_name in enumerate(df.columns):
+          if col_name == "Status":
+            continue
           col_target = cols[i % 3]
           val = str(row[col_name]) if row[col_name] != "nan" else ""
 
@@ -147,13 +183,17 @@ if df is not None:
 
         submit = st.form_submit_button("💾 માહિતી સેવ કરો")
 
-      # ફોર્મની બહાર (After the form context manager)
+      # ફોર્મની બહાર સબમિટ લોજિક
       if submit:
         error_occurred = False
+
+        # જૂની વેલ્યુ કરતાં મોટી વેલ્યુ ન ભરાય તેની ચકાસણી
         for col_name, max_limit in original_max_values.items():
-          if int(updated_values[col_name]) > max_limit:
+          entered_val = int(updated_values[col_name])
+          if entered_val > max_limit:
             st.error(
-                f"ભૂલ: '{col_name}' માં મહત્તમ {max_limit} જ ભરી શકાય છે!"
+                f"ભૂલ: '{col_name}' માં જૂની વેલ્યુ ({max_limit}) કરતાં મોટી વેલ્યુ"
+                f" ({entered_val}) ભરી શકાતી નથી!"
             )
             error_occurred = True
 
@@ -164,18 +204,22 @@ if df is not None:
             ):
               df.loc[idx, col_name] = str(new_val)
 
+          # માહિતી સેવ થતાં જ સ્ટેટસ 'Completed' કરી દેવું
+          df.loc[idx, "Status"] = "Completed"
+
           # SQLite ડેટાબેઝમાં ડેટા અપડેટ કરવો
           conn = sqlite3.connect(db_file)
           df.to_sql("school_data", conn, if_exists="replace", index=False)
           conn.close()
 
-          st.success("માહિતી સફળતાપૂર્વક ડેટાબેઝમાં અપડેટ અને સેવ થઈ ગઈ છે!")
+          st.success(
+              "માહિતી સફળતાપૂર્વक ડેટાબેઝમાં સેવ થઈ ગઈ છે અને સ્ટેટસ 'Completed'"
+              " થઈ ગયું છે!"
+          )
 
-          # Session state માં સેવ કરવું
           st.session_state["updated_df"] = df
           st.session_state["data_saved"] = True
 
-      # ડાઉનલોડ બટન હંમેશા ફોર્મની બહાર જ હોવું જોઈએ
       if st.session_state.get("data_saved", False):
         output_file = "SURAT_eWaste_Updated.xlsx"
         current_df = st.session_state["updated_df"]
