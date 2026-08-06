@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import pandas as pd
 import streamlit as st
 
@@ -6,30 +7,43 @@ st.set_page_config(page_title="SURAT eWaste Survey 2026-27", layout="wide")
 
 st.title("🏫 SURAT eWaste Survey - School Data Update Form")
 
-# ક્લાઉડ પર ફાઇલ અપલોડ કરવા માટેનું યુઝર ઇન્ટરફેસ
-uploaded_file = st.file_uploader(
-    "કૃપા કરીને તમારી 'E-Waste_Sch.ods' ફાઇલ અહીં અપલોડ કરો",
-    type=["ods", "xlsx"],
-)
+db_file = "ewaste.db"
 
-df = None
-if uploaded_file is not None:
-  try:
-    xls = pd.ExcelFile(uploaded_file, engine="odf")
-    sheet_names = xls.sheet_names
 
-    matched_sheet = None
-    for s in sheet_names:
-      if s.strip().lower() == "schdata":
-        matched_sheet = s
-        break
+@st.cache_data
+def load_data_from_db():
+  if os.path.exists(db_file):
+    conn = sqlite3.connect(db_file)
+    df = pd.read_sql("SELECT * FROM school_data", conn)
+    conn.close()
+    return df
+  return None
 
-    target_sheet = matched_sheet if matched_sheet else sheet_names[0]
-    st.sidebar.success(f"ઓપન કરેલી શીટ: {target_sheet}")
 
-    df = pd.read_excel(uploaded_file, sheet_name=target_sheet, header=0)
-  except Exception as e:
-    df = pd.read_excel(uploaded_file, sheet_name=0, header=0)
+# જો ડેટાબેઝ ફાઇલ ન હોય તો ફાઇલ અપલોડ કરવાનો ઓપ્શન આપવો
+if not os.path.exists(db_file):
+  uploaded_file = st.file_uploader(
+      "કૃપા કરીને તમારી 'E-Waste_Sch.ods' અથવા SQLite ફાઇલ અહીં અપલોડ કરો",
+      type=["ods", "xlsx", "db"],
+  )
+  if uploaded_file is not None:
+    if uploaded_file.name.endswith(".db"):
+      with open(db_file, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+      st.success("ડેટાબેઝ સફળતાપૂર્વક અપલોડ થઈ ગયો છે! પેજ રિફ્રેશ કરો.")
+      st.rerun()
+    else:
+      try:
+        df = pd.read_excel(uploaded_file, sheet_name=0, header=0)
+        conn = sqlite3.connect(db_file)
+        df.to_sql("school_data", conn, if_exists="replace", index=False)
+        conn.close()
+        st.success("ഫાઇલ સફળતાપૂર્વક ડેટાબેઝમાં કન્વર્ટ થઈ ગઈ છે!")
+        st.rerun()
+      except Exception as e:
+        st.error(f"ભૂલ આવી: {e}")
+
+df = load_data_from_db()
 
 if df is not None:
   df.columns = [str(c).strip() for c in df.columns]
@@ -147,10 +161,18 @@ if df is not None:
               ):
                 df.loc[idx, col_name] = str(new_val)
 
+            # SQLite ડેટાબેઝમાં ડેટા અપડેટ કરવો
+            conn = sqlite3.connect(db_file)
+            df.to_sql("school_data", conn, if_exists="replace", index=False)
+            conn.close()
+
+            st.success(
+                "માહિતી સફળતાપૂર્વક ડેટાબેઝમાં અપડેટ અને સેવ થઈ ગઈ છે!"
+            )
+
+            # એક્સેલ ફાઇલ ડાઉનલોડ કરવા માટે
             output_file = "SURAT_eWaste_Updated.xlsx"
             df.to_excel(output_file, index=False)
-            st.success("માહિતી સફળતાપૂર્વક અપડેટ થઈ ગઈ છે!")
-
             with open(output_file, "rb") as f:
               st.download_button(
                   label="📥 અપડેટ કરેલી એક્સેલ ફાઇલ ડાઉનલોડ કરો",
@@ -165,4 +187,4 @@ if df is not None:
   else:
     st.info("👈 કૃપા કરીને ડાબી બાજુના બોક્સમાં School Code દાખલ કરો.")
 else:
-  st.warning("કૃપા કરીને તમારી `.ods` અથવા `.xlsx` ફાઇલ ઉપર અપલોડ કરો.")
+  st.warning("કૃપા કરીને ફાઇલ અપલોડ કરો.")
