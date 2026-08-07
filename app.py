@@ -162,5 +162,9 @@ def handle_sheet(tab_name):
             else:
                 st.error("આ કોડવાળી શાળા ડેટાબેઝમાં મળી નથી! (શાળાનો કોડ બંને શીટમાં હોવો જરૂરી છે)")
 
+    # અહીં try બ્લોકને પૂરો કરવા માટે except મૂકવામાં આવ્યું છે
+    except Exception as e:
+        st.error(f"સિસ્ટમ કે કનેક્શનમાં ભૂલ છે: {e}")
+
 with tab1: handle_sheet("CAL")
 with tab2: handle_sheet("Gyankunj")
