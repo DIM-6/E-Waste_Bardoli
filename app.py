@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
@@ -46,7 +47,7 @@ def handle_sheet(tab_name):
 
         original_df = st.session_state['original_df_cache'][tab_name]
 
-        # --- એક જ લાઇન (Flexbox) માં કુલ, પૂર્ણ અને બાકી એન્ટ્રી (મોબાઈલ અને ડેસ્કટોપ માટે પરફેક્ટ) ---
+        # --- એક જ લાઇન (Flexbox) માં કુલ, પૂર્ણ અને બાકી એન્ટ્રી ---
         total_schools = len(current_df)
         try:
             completed_entries = len(current_df[current_df["Standalone desktop computers"].astype(str).str.strip() != "0"])
@@ -129,7 +130,10 @@ def handle_sheet(tab_name):
                                 orig_val_str = str(original_school_row[col]).strip()
                                 original_num = int(orig_val_str) if orig_val_str.isdigit() else 0
                                 
-                                if user_input.strip().isdigit():
+                                if user_input.strip() == "":
+                                    st.error(f"❌ '{col}' ખાલી રાખી શકાતી નથી! બધી જ વિગતો ભરવી ફરજિયાત છે.")
+                                    has_error = True
+                                elif user_input.strip().isdigit():
                                     user_num = int(user_input.strip())
                                     if user_num > original_num:
                                         st.error(f"❌ '{col}' માં મૂળ આંકડા ({original_num}) કરતા વધારે વેલ્યુ નાખી શકાતી નથી!")
@@ -137,9 +141,8 @@ def handle_sheet(tab_name):
                                     else:
                                         updated_data[col] = str(user_num)
                                 else:
-                                    if user_input.strip() != "":
-                                        st.error(f"❌ '{col}' માં ફક્ત પૂર્ણાંક સંખ્યા (Whole Number) જ માન્ય છે!")
-                                        has_error = True
+                                    st.error(f"❌ '{col}' માં ફક્ત પૂર્ણાંક સંખ્યા (Whole Number) જ માન્ય છે!")
+                                    has_error = True
                                     updated_data[col] = user_input
                             else:
                                 updated_data[col] = st.text_input(col, value=val, disabled=is_locked)
@@ -149,11 +152,24 @@ def handle_sheet(tab_name):
                         
                         if submit_button:
                             if has_error:
-                                st.error("કૃપા કરીને ભૂલો સુધારીને ફરીથી પ્રયત્ન કરો.")
+                                st.error("કૃપા કરીને બધી જ વિગતો સાી રીતે ભરીને ફરીથી પ્રયત્ન કરો. કોઈ ખાનું ખાલી ન હોવું જોઈએ.")
                             else:
                                 with st.spinner('માહિતી સેવ થઈ રહી છે, કૃપા કરીને રાહ જુઓ...'):
                                     sheet_row_idx = row_idx + 2 
+                                    
+                                    # જો શીટમાં છેલ્લી કોલમ 'Timestamp' નામની ન હોય તો તેને લિસ્ટમાં ઉમેરી શકીએ, 
+                                    # અથવા જો કોઈ ટાઈમસ્ટેમ્પ કોલમ હોય તો તેમાં સમય મૂકી શકાય.
+                                    # અહીં આપણે વર્તમાન સમય (Timestamp) ઉમેરીએ છીએ:
+                                    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                    
+                                    # જો ડેટાફ્રેમમાં Timestamp નામની કોલમ હોય તો તેમાં સમય નાખીશું, 
+                                    # નહિતર ડેટાના અંતે સમય ઉમેરાશે.
                                     new_values = [updated_data[col] for col in current_df.columns]
+                                    
+                                    # જો છેલ્લી હેડર કોલમ Timestamp હોય તો ત્યાં સમય અપડેટ થશે
+                                    if "Timestamp" in [c.title() for c in current_df.columns]:
+                                        ts_idx = [c.title() for c in current_df.columns].index("Timestamp")
+                                        new_values[ts_idx] = current_time
                                     
                                     body = {'values': [new_values]}
                                     service.spreadsheets().values().update(
@@ -164,7 +180,7 @@ def handle_sheet(tab_name):
                                     ).execute()
                                     
                                     st.cache_data.clear()
-                                    st.success("માહિતી સફળતાપૂર્વક Google Sheet માં સેવ થઈ ગઈ છે!")
+                                    st.success(f"માહિતી સફળતાપૂર્વક Google Sheet માં સેવ થઈ ગઈ છે! (Time: {current_time})")
                                     st.rerun()
                 else:
                     st.error("આ કોડવાળી શાળા મળી નથી!")
