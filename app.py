@@ -65,23 +65,20 @@ def handle_sheet(tab_name):
         completed = len(completed_codes)
         pending = total - completed
         
-        # મોબાઈલમાં એક જ લાઈનમાં દેખાય અને ડાર્ક/લાઈટ થીમ સપોર્ટ કરે તેવું HTML ડેશબોર્ડ
+        # વ્યવસ્થિત ટેબલ ફોર્મેટમાં ડેશબોર્ડ (ઉપર હેડિંગ, નીચે ડેટા - માત્ર આ જ ભાગ ટેબલમાં છે)
         st.markdown(f"""
-            <div style="display: flex; justify-content: space-between; text-align: center; margin-bottom: 10px;">
-                <div style="flex: 1;">
-                    <div style="font-size: 13px; color: gray;">કુલ શાળાઓ ({master_sheet_name})</div>
-                    <div style="font-size: 28px; font-weight: bold;">{total}</div>
-                </div>
-                <div style="flex: 1;">
-                    <div style="font-size: 13px; color: gray;">એન્ટ્રી પૂર્ણ ({entry_sheet_name})</div>
-                    <div style="font-size: 28px; font-weight: bold; color: #28a745;">{completed}</div>
-                </div>
-                <div style="flex: 1;">
-                    <div style="font-size: 13px; color: gray;">બાકી એન્ટ્રી</div>
-                    <div style="font-size: 28px; font-weight: bold; color: #dc3545;">{pending}</div>
-                </div>
-            </div>
-            <hr style="margin-top: 5px; margin-bottom: 15px;">
+            <table style="width: 100%; text-align: center; border: 1px solid #ddd; border-collapse: collapse; margin-bottom: 20px;">
+                <tr>
+                    <th style="padding: 10px; border: 1px solid #ddd; color: gray; font-size: 14px; font-weight: normal; width: 33%;">કુલ શાળાઓ ({master_sheet_name})</th>
+                    <th style="padding: 10px; border: 1px solid #ddd; color: gray; font-size: 14px; font-weight: normal; width: 33%;">એન્ટ્રી પૂર્ણ ({entry_sheet_name})</th>
+                    <th style="padding: 10px; border: 1px solid #ddd; color: gray; font-size: 14px; font-weight: normal; width: 33%;">બાકી એન્ટ્રી</th>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd; font-size: 28px; font-weight: bold;">{total}</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; font-size: 28px; font-weight: bold; color: #28a745;">{completed}</td>
+                    <td style="padding: 10px; border: 1px solid #ddd; font-size: 28px; font-weight: bold; color: #dc3545;">{pending}</td>
+                </tr>
+            </table>
         """, unsafe_allow_html=True)
         
         # --- ૨. પેન્ડિંગ શાળાઓની યાદી (Pending List) ---
