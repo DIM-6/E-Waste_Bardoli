@@ -13,7 +13,6 @@ def get_sheet_data(sheet_name):
     service = build('sheets', 'v4', credentials=creds)
     spreadsheet_id = "1oAeqzK2zgifwn--u2jjYicfmlhpvqhwNAXi1ErMfrIQ"
     
-    # આખી શીટનો ડેટા મેળવો (બધી જ કૉલમ્સ કવર થઈ જાય તે માટે)
     result = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=f"{sheet_name}!A1:ZZ1000").execute()
     return result.get('values', []), service, spreadsheet_id
 
@@ -26,16 +25,14 @@ def handle_sheet(tab_name):
     try:
         rows, service, spreadsheet_id = get_sheet_data(tab_name)
         if len(rows) < 2:
-            st.warning("Google Sheet માં ડેટા નથી!")
+            st.warning("Google Sheet માં કોઈ ડેટા નથી!")
             return
             
         header = [str(c).strip() for c in rows[0] if str(c).strip() != ""]
         num_cols = len(header)
         
-        # ડેટાને હેડર મુજબ ફ્રેમમાં ફિટ કરો
         data_rows = []
         for r in rows[1:]:
-            # જો કોઈ રો માં કૉલમ ઓછી હોય તો પાછળ ખાલી જગ્યા ભરી દો
             while len(r) < num_cols:
                 r.append("")
             data_rows.append(r[:num_cols])
@@ -78,8 +75,9 @@ def handle_sheet(tab_name):
                             val = str(row_data[col]) if col in row_data and pd.notna(row_data[col]) else ""
                             is_disabled = (i <= 5) or (i >= num_cols - 2)
                             
-                            if i >= num_cols - 2 and (not val or val == "nan"):
-                                val = "Completed" if i == num_cols - 2 else ""
+                            # જો અગાઉથી કઈ ભરેલું ન હોય તો છેલ્લી બે કૉલમ ખાલી જ દેખાશે (બાય ડિફોલ્ટ Completed નહીં આવે)
+                            if i >= num_cols - 2 and (val == "nan" or val is None):
+                                val = ""
                                 
                             updated_inputs[col] = st.text_input(col, value=val, disabled=is_disabled)
                         
@@ -88,18 +86,16 @@ def handle_sheet(tab_name):
                                 sheet_row_idx = idx + 2 
                                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                 
-                                # હેડરની બરાબર સાઈઝ (`num_cols`) જેટલું જ લિસ્ટ બનાવીશું
                                 final_values = []
                                 for i, col_name in enumerate(header):
-                                    if i == num_cols - 2:  # Entry Status
+                                    if i == num_cols - 2:  # Entry Status -> ફક્ત સેવ કરતી વખતે જ Completed થશે
                                         final_values.append("Completed")
-                                    elif i == num_cols - 1: # TimeStamp
+                                    elif i == num_cols - 1: # TimeStamp -> ફક્ત સેવ કરતી વખતે જ સમય આવશે
                                         final_values.append(current_time)
                                     else:
                                         val = updated_inputs.get(col_name, row_data.get(col_name, ""))
                                         final_values.append(str(val))
                                         
-                                # ખાતરી કરો કે લંબાઈ એકદમ પરફેક્ટ હેડર જેટલી જ છે
                                 final_values = final_values[:num_cols]
                                 
                                 body = {'values': [final_values]}
