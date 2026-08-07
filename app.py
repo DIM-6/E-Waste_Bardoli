@@ -45,32 +45,64 @@ def handle_sheet(tab_name):
                     
                     st.success("શાળાની માહિતી મળી ગઈ છે. નીચે ફોર્મમાં વિગતો ભરો:")
                     
+                    # 'Standalone desktop computers' અને '600 VA Line Interactive UPS' ના ઇન્ડેક્સ શોધી લઈએ
+                    cols_list = list(df.columns)
+                    try:
+                        start_limit_idx = cols_list.index("Standalone desktop computers")
+                        # 600 VA વાળી કોલમનું નામ બરાબર મેચ થાય તે માટે શોધીએ
+                        end_limit_idx = [i for i, c in enumerate(cols_list) if "600 VA" in c][0]
+                    except:
+                        start_limit_idx = 12  # ડિફોલ્ટ અંદાજિત રેન્જ
+                        end_limit_idx = 25
+
                     with st.form(key=f"form_{tab_name}"):
                         updated_data = {}
+                        has_error = False
                         
-                        # અહીં આપણે કોલમનો ઇન્ડેક્સ ચેક કરીને લોક કરીશું
-                        for idx, col in enumerate(df.columns):
+                        for idx, col in enumerate(cols_list):
                             val = str(school_row[col]) if pd.notna(school_row[col]) else ""
+                            is_locked = idx <= 5  # Sr. થી School Name સુધી લોક
                             
-                            # 0 થી 5 નંબરની કોલમ (Sr. થી School Name સુધી) લોક કરીશું
-                            is_locked = idx <= 5 
-                            
-                            if idx == 6: # કોમ્પ્યુટર લેબ વાળો પ્રશ્ન (ડ્રોપ-ડાઉન)
+                            if idx == 6:  # કોમ્પ્યુટર લેબ ડ્રોપ-ડાઉન
                                 options = ["હા-૧", "ના-૨"]
                                 default_idx = options.index(val) if val in options else 0
                                 updated_data[col] = st.selectbox(col, options, index=default_idx)
+                                
+                            elif start_limit_idx <= idx <= end_limit_idx:
+                                # આ રેન્જમાં માત્ર હોલ નંબર અને ઓરિજિનલ ડેટાથી વધારે ન હોવું જોઈએ
+                                user_input = st.text_input(col, value=val)
+                                
+                                # વેલિડેશન ચેક
+                                original_val_str = val.strip()
+                                original_num = int(original_val_str) if original_val_str.isdigit() else 0
+                                
+                                if user_input.strip().isdigit():
+                                    user_num = int(user_input.strip())
+                                    if user_num > original_num:
+                                        st.error(f"❌ '{col}' માં મૂળ આંકડા ({original_num}) કરતા વધારે વેલ્યુ નાખી શકાતી નથી!")
+                                        has_error = True
+                                    else:
+                                        updated_data[col] = str(user_num)
+                                else:
+                                    if user_input.strip() != "":
+                                        st.error(f"❌ '{col}' માં ફક્ત પૂર્ણાંક સંખ્યા (Whole Number) જ માન્ય છે!")
+                                        has_error = True
+                                    updated_data[col] = user_input
                             else:
                                 updated_data[col] = st.text_input(col, value=val, disabled=is_locked)
                         
                         submit_button = st.form_submit_button(label="ફેરફાર સેવ કરો")
                         
                         if submit_button:
-                            sheet_row_idx = row_idx + 2 
-                            new_values = [updated_data[col] for col in df.columns]
-                            
-                            sheet.update(f"A{sheet_row_idx}", [new_values])
-                            st.success("માહિતી સફળતાપૂર્વક Google Sheet માં સેવ થઈ ગઈ છે!")
-                            st.rerun()
+                            if has_error:
+                                st.error("કૃપા કરીને ભૂલો સુધારીને ફરીથી પ્રયત્ન કરો.")
+                            else:
+                                sheet_row_idx = row_idx + 2 
+                                new_values = [updated_data[col] for col in df.columns]
+                                
+                                sheet.update(f"A{sheet_row_idx}", [new_values])
+                                st.success("માહિતી સફળતાપૂર્વક Google Sheet માં સેવ થઈ ગઈ છે!")
+                                st.rerun()
                 else:
                     st.error("આ કોડવાળી શાળા મળી નથી!")
             else:
