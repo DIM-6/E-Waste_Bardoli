@@ -65,16 +65,24 @@ def handle_sheet(tab_name):
         completed = len(completed_codes)
         pending = total - completed
         
-        # ડાર્ક/લાઈટ થીમ અને મોબાઈલ માટે પરફેક્ટ ડેશબોર્ડ (st.metric નો ઉપયોગ)
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric(label=f"કુલ શાળાઓ ({master_sheet_name})", value=total)
-        with col2:
-            st.metric(label=f"એન્ટ્રી પૂર્ણ ({entry_sheet_name})", value=completed)
-        with col3:
-            st.metric(label="બાકી એન્ટ્રી", value=pending)
-        
-        st.markdown("---") # ડેશબોર્ડ નીચે એક લાઈન દોરવા માટે
+        # મોબાઈલમાં એક જ લાઈનમાં દેખાય અને ડાર્ક/લાઈટ થીમ સપોર્ટ કરે તેવું HTML ડેશબોર્ડ
+        st.markdown(f"""
+            <div style="display: flex; justify-content: space-between; text-align: center; margin-bottom: 10px;">
+                <div style="flex: 1;">
+                    <div style="font-size: 13px; color: gray;">કુલ શાળાઓ ({master_sheet_name})</div>
+                    <div style="font-size: 28px; font-weight: bold;">{total}</div>
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-size: 13px; color: gray;">એન્ટ્રી પૂર્ણ ({entry_sheet_name})</div>
+                    <div style="font-size: 28px; font-weight: bold; color: #28a745;">{completed}</div>
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-size: 13px; color: gray;">બાકી એન્ટ્રી</div>
+                    <div style="font-size: 28px; font-weight: bold; color: #dc3545;">{pending}</div>
+                </div>
+            </div>
+            <hr style="margin-top: 5px; margin-bottom: 15px;">
+        """, unsafe_allow_html=True)
         
         # --- ૨. પેન્ડિંગ શાળાઓની યાદી (Pending List) ---
         with st.expander(f"📋 બાકી રહેલી શાળાઓની યાદી જુઓ ({tab_name})"):
