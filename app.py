@@ -16,6 +16,9 @@ def get_sheet(sheet_name):
 
 st.title("🏫 SURAT eWaste Survey - Data Form")
 
+# ** અહીં ખાસ સૂચના ઉમેરી દીધી છે **
+st.warning("⚠️ **સૂચના:** હાલ આ સાઇટ પર કામ ચાલી રહ્યું છે, જેથી હમણાં કોઈ પણ જાતની એન્ટ્રી કરવી નહીં.")
+
 tab1, tab2 = st.tabs(["💻 CAL", "📚 Gyankunj"])
 
 def handle_sheet(tab_name):
@@ -50,14 +53,11 @@ def handle_sheet(tab_name):
                         for col in df.columns:
                             val = str(school_row[col]) if pd.notna(school_row[col]) else ""
                             
-                            # જો કોલમનું નામ પેલા પ્રશ્ન જેવું હોય તો ડ્રોપ-ડાઉન (selectbox) આપીએ
                             if "૨૦૧૧ અથવા તે પહેલા" in col or "૨૦૧૧" in col:
-                                # શીટમાં જે જૂની કિંમત હોય તેને ડિફોલ્ટ પકડવા માટે
                                 options = ["હા-૧", "ના-૨"]
                                 default_idx = options.index(val) if val in options else 0
                                 updated_data[col] = st.selectbox(col, options, index=default_idx)
                             else:
-                                # બાકીના બધા માટે નોર્મલ ટેક્સ્ટ ઇનપુટ
                                 updated_data[col] = st.text_input(col, value=val)
                         
                         submit_button = st.form_submit_button(label="ફેરફાર સેવ કરો")
