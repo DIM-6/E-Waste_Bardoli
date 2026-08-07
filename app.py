@@ -16,6 +16,8 @@ def get_sheet_data(sheet_name):
     return result.get('values', []), service, spreadsheet_id
 
 st.title("🏫 SURAT eWaste Survey - Data Form")
+st.warning("⚠️ **સૂચના:** હાલ આ સાઇટ પર કામ ચાલી રહ્યું છે, જેથી હમણાં કોઈ પણ જાતની એન્ટ્રી કરવી નહીં.")
+
 tab1, tab2 = st.tabs(["💻 CAL", "📚 Gyankunj"])
 
 def handle_sheet(tab_name):
@@ -25,18 +27,19 @@ def handle_sheet(tab_name):
             st.warning("Google Sheet માં ડેટા નથી!")
             return
             
-        header = rows[0] # ગૂગલ શીટની અસલી કૉલમ્સના નામ
+        header = rows[0] 
         df = pd.DataFrame(rows[1:], columns=header)
         df.columns = df.columns.str.strip()
         header = [str(c).strip() for c in header]
         
-        status_col = "Entry Status"
-        ts_col = "TimeStamp"
+        # છેલ્લી બે કૉલમ્સના નામ (Google Sheet મુજબ)
+        status_col = header[-2] # કે "Entry Status"
+        ts_col = header[-1]     # કે "TimeStamp"
         
         total = len(df)
         completed = len(df[df.get(status_col, "").astype(str).str.strip() == "Completed"]) if status_col in df else 0
         
-        # ડેશબોર્ડ
+        # ડેશબોર્ડ (કુલ, પૂર્ણ, બાકી)
         st.markdown(f"""
             <div style="display: flex; justify-content: space-between; background-color: #f0f2f6; padding: 15px; border-radius: 10px;">
                 <div style="text-align: center;"><div>કુલ શાળાઓ</div><div style="font-size: 18px; font-weight: bold;">{total}</div></div>
@@ -57,38 +60,43 @@ def handle_sheet(tab_name):
                 if not match.empty:
                     idx = match.index[0]
                     row_data = match.iloc[0]
-                    st.success("શાળાની માહિતી મળી ગઈ છે:")
+                    st.success("શાળાની માહિતી મળી ગઈ છે. નીચે બધી જ વિગતો ભરો:")
                     
                     with st.form(key=f"form_{tab_name}"):
                         updated_inputs = {}
-                        for col in df.columns:
-                            if col in [status_col, ts_col]:
-                                continue
-                            val = str(row_data[col]) if pd.notna(row_data[col]) else ""
-                            is_disabled = df.columns.get_loc(col) <= 5
+                        
+                        # શીટની બધી જ કૉલમ્સ ફોર્મમાં દેખાડવી
+                        for i, col in enumerate(header):
+                            val = str(row_data[col]) if col in row_data and pd.notna(row_data[col]) else ""
+                            
+                            # નિયમ: પહેલી 5 કૉલમ અને છેલ્લી 2 કૉલમ (Status અને TimeStamp) disable રાખવી
+                            is_disabled = (i <= 5) or (i >= len(header) - 2)
+                            
+                            # જો છેલ્લી બે કૉલમ હોય તો ફોર્મમાં Preview માટે "Completed" કે જૂનો સમય બતાવી શકાય
+                            if i >= len(header) - 2 and not val:
+                                val = "Completed / Auto" if i == len(header) - 2 else "Auto Time"
+                                
                             updated_inputs[col] = st.text_input(col, value=val, disabled=is_disabled)
                         
                         if st.form_submit_button("ફેરફાર સેવ કરો"):
-                            with st.spinner('સેવ થઈ રહ્યું છે...'):
+                            with st.spinner('માહિતી સેવ થઈ રહી છે...'):
                                 sheet_row_idx = idx + 2 
-                                
-                                # Google Sheet માંથી એ જ રો નો જૂનો ડેટા પકડો
                                 existing_row = rows[sheet_row_idx - 1]
                                 
-                                # હેડર જેટલી જ લંબાઈ મેચ કરવા માટે ખાના પૂરા કરો
                                 while len(existing_row) < len(header):
                                     existing_row.append("")
                                     
-                                # જે જે કૉલમ બદલાય છે તેમાં નવો ડેટા મૂકો
+                                # બધી કૉલમ્સ અપડેટ કરવી
+                                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                 for i, col_name in enumerate(header):
-                                    if col_name == status_col:
+                                    if i == len(header) - 2:  # છેલ્લીથી બીજો કોલમ (Status)
                                         existing_row[i] = "Completed"
-                                    elif col_name == ts_col:
-                                        existing_row[i] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                    elif col_name in updated_inputs:
-                                        existing_row[i] = str(updated_inputs[col_name])
+                                    elif i == len(header) - 1: # છેલ્લી કોલમ (TimeStamp)
+                                        existing_row[i] = current_time
+                                    elif i > 5: # જે યુઝરે ભરી છે તે કૉલમ્સ
+                                        if col_name in updated_inputs:
+                                            existing_row[i] = str(updated_inputs[col_name])
                                         
-                                # ચોક્કસ લંબાઈ સાથે જ ડેટા મોકલો
                                 final_values = existing_row[:len(header)]
                                 
                                 body = {'values': [final_values]}
@@ -100,14 +108,14 @@ def handle_sheet(tab_name):
                                 ).execute()
                                 
                                 st.cache_data.clear()
-                                st.success("માહિતી સફળતાપૂર્વક સેવ થઈ ગઈ છે!")
+                                st.success(f"માહિતી સફળતાપૂર્વક સેવ થઈ ગઈ છે! (Time: {current_time})")
                                 st.rerun()
                 else:
                     st.error("આ કોડવાળી શાળા મળી નથી!")
             else:
                 st.error("School Code વાળી કૉલમ મળી નથી!")
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"કનેક્શન કે ડેટામાં ભૂલ છે: {e}")
 
 with tab1: handle_sheet("CAL")
 with tab2: handle_sheet("Gyankunj")
