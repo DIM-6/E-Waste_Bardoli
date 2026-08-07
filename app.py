@@ -1,15 +1,18 @@
 import streamlit as st
 import pandas as pd
 import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
-# Google Sheets કનેક્શન સેટઅપ (સ્ટાન્ડર્ડ અને એરર વગરનું)
+# Google Sheets કનેક્શન સેટઅપ (જૂની સ્ટેબલ પદ્ધતિ)
 @st.cache_data(ttl=600)
 def get_sheet_data(sheet_name):
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     creds_dict = dict(st.secrets["gcp"])
     if '\\n' in creds_dict['private_key']:
         creds_dict['private_key'] = creds_dict['private_key'].replace('\\n', '\n')
         
-    client = gspread.service_account_from_dict(creds_dict)
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    client = gspread.authorize(creds)
     sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1oAeqzK2zgifwn--u2jjYicfmlhpvqhwNAXi1ErMfrIQ/edit').worksheet(sheet_name)
     return sheet.get_all_values(), sheet
 
