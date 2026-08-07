@@ -42,15 +42,36 @@ def handle_sheet(tab_name):
         
         total = len(df)
         completed = len(df[df.get(status_col, "").astype(str).str.strip() == "Completed"]) if status_col in df else 0
+        pending = total - completed
         
         # ડેશબોર્ડ
         st.markdown(f"""
             <div style="display: flex; justify-content: space-between; background-color: #f0f2f6; padding: 15px; border-radius: 10px;">
                 <div style="text-align: center;"><div>કુલ</div><div style="font-size: 18px; font-weight: bold;">{total}</div></div>
                 <div style="text-align: center;"><div>પૂર્ણ</div><div style="font-size: 18px; font-weight: bold; color: green;">{completed}</div></div>
-                <div style="text-align: center;"><div>બાકી</div><div style="font-size: 18px; font-weight: bold; color: red;">{total - completed}</div></div>
+                <div style="text-align: center;"><div>બાકી</div><div style="font-size: 18px; font-weight: bold; color: red;">{pending}</div></div>
             </div>
         """, unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        # --- પેન્ડિંગ શાળાઓ જોવા માટેનું એક્સપાન્ડર ---
+        with st.expander(f"📋 બાકી રહેલી શાળાઓની યાદી જુઓ ({tab_name})"):
+            if status_col in df.columns:
+                # જે શાળાઓમાં Status "Completed" નથી કે ખાલી છે તે પેન્ડિંગ ગણાય
+                pending_df = df[df[status_col].astype(str).str.strip() != "Completed"]
+                if not pending_df.empty:
+                    # શાળાઓના કોડ અને નામવાળી કૉલમ શોધીને બતાવીશું
+                    code_cols = [c for c in df.columns if 'code' in c.lower() or 'sch' in c.lower()]
+                    name_cols = [c for c in df.columns if 'name' in c.lower()]
+                    if code_cols and name_cols:
+                        st.dataframe(pending_df[[code_cols[0], name_cols[0]]], use_container_width=True)
+                    else:
+                        st.dataframe(pending_df.iloc[:, :3], use_container_width=True)
+                else:
+                    st.success("બધી જ શાળાઓની એન્ટ્રી પૂર્ણ થઈ ગઈ છે!")
+            else:
+                st.warning("Status કૉલમ મળી નથી.")
+        
         st.markdown("<br>", unsafe_allow_html=True)
         
         school_code = st.text_input(f"School Code નાખો ({tab_name}):", key=f"input_{tab_name}")
@@ -68,10 +89,7 @@ def handle_sheet(tab_name):
                     with st.form(key=f"form_{tab_name}"):
                         updated_inputs = {}
                         for i, col in enumerate(header):
-                            # જે ડેટા શીટમાં છે તે જ અહીં દેખાશે (જો ખાલી હશે તો ખાલી દેખાશે)
                             val = str(row_data[col]) if col in row_data else ""
-                            
-                            # પહેલી 5 કૉલમ Disable, છેલ્લી 2 કૉલમ પણ Disable (માત્ર વાંચવા માટે)
                             is_disabled = (i <= 5) or (i >= num_cols - 2)
                             updated_inputs[col] = st.text_input(col, value=val, disabled=is_disabled)
                         
@@ -82,12 +100,11 @@ def handle_sheet(tab_name):
                                 
                                 final_values = []
                                 for i, col_name in enumerate(header):
-                                    if i == num_cols - 2:  # Entry Status
+                                    if i == num_cols - 2:  
                                         final_values.append("Completed")
-                                    elif i == num_cols - 1: # TimeStamp
+                                    elif i == num_cols - 1: 
                                         final_values.append(current_time)
                                     else:
-                                        # બાકીની કૉલમ્સમાં જે છે તે જ રહેશે
                                         val = updated_inputs.get(col_name, row_data.get(col_name, ""))
                                         final_values.append(str(val))
                                 
