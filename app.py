@@ -25,14 +25,16 @@ def handle_sheet(tab_name):
             st.warning("Google Sheet માં ડેટા નથી!")
             return
             
-        df = pd.DataFrame(rows[1:], columns=rows[0])
+        header = rows[0] # ગૂગલ શીટની અસલી કૉલમ્સના નામ
+        df = pd.DataFrame(rows[1:], columns=header)
         df.columns = df.columns.str.strip()
+        header = [str(c).strip() for c in header]
         
         status_col = "Entry Status"
         ts_col = "TimeStamp"
         
         total = len(df)
-        completed = len(df[df.get(status_col, "").astype(str).str.strip() == "Completed"]) if status_col in df.columns else 0
+        completed = len(df[df.get(status_col, "").astype(str).str.strip() == "Completed"]) if status_col in df else 0
         
         # ડેશબોર્ડ
         st.markdown(f"""
@@ -63,30 +65,33 @@ def handle_sheet(tab_name):
                             if col in [status_col, ts_col]:
                                 continue
                             val = str(row_data[col]) if pd.notna(row_data[col]) else ""
-                            # પહેલી 5 કોલમ લોક રાખવી હોય તો
-                            is_disabled = list(df.columns).index(col) <= 5
+                            is_disabled = df.columns.get_loc(col) <= 5
                             updated_inputs[col] = st.text_input(col, value=val, disabled=is_disabled)
                         
                         if st.form_submit_button("ફેરફાર સેવ કરો"):
                             with st.spinner('સેવ થઈ રહ્યું છે...'):
-                                sheet_row_idx = idx + 2 # 헤ડર અને 0-index ના લીધે +2
+                                sheet_row_idx = idx + 2 
                                 
-                                # અસલી રો નો ડેટા મેળવીને તેમાં જ ફેરફાર કરીએ જેથી કૉલમની સંખ્યા પરફેક્ટ મેચ થાય
-                                current_row_values = rows[sheet_row_idx - 1]
+                                # Google Sheet માંથી એ જ રો નો જૂનો ડેટા પકડો
+                                existing_row = rows[sheet_row_idx - 1]
                                 
-                                # જો શીટમાં કૉલમ ઓછી હોય તો તેને લંબાવી દઈએ
-                                while len(current_row_values) < len(df.columns):
-                                    current_row_values.append("")
+                                # હેડર જેટલી જ લંબાઈ મેચ કરવા માટે ખાના પૂરા કરો
+                                while len(existing_row) < len(header):
+                                    existing_row.append("")
                                     
-                                for i, col in enumerate(df.columns):
-                                    if col == status_col:
-                                        current_row_values[i] = "Completed"
-                                    elif col == ts_col:
-                                        current_row_values[i] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                    elif col in updated_inputs:
-                                        current_row_values[i] = updated_inputs[col]
+                                # જે જે કૉલમ બદલાય છે તેમાં નવો ડેટા મૂકો
+                                for i, col_name in enumerate(header):
+                                    if col_name == status_col:
+                                        existing_row[i] = "Completed"
+                                    elif col_name == ts_col:
+                                        existing_row[i] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                    elif col_name in updated_inputs:
+                                        existing_row[i] = str(updated_inputs[col_name])
                                         
-                                body = {'values': [current_row_values]}
+                                # ચોક્કસ લંબાઈ સાથે જ ડેટા મોકલો
+                                final_values = existing_row[:len(header)]
+                                
+                                body = {'values': [final_values]}
                                 service.spreadsheets().values().update(
                                     spreadsheetId=spreadsheet_id, 
                                     range=f"{tab_name}!A{sheet_row_idx}",
