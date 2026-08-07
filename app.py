@@ -14,7 +14,7 @@ def get_sheet(sheet_name):
     client = gspread.authorize(creds)
     return client.open_by_url('https://docs.google.com/spreadsheets/d/1oAeqzK2zgifwn--u2jjYicfmlhpvqhwNAXi1ErMfrIQ/edit').worksheet(sheet_name)
 
-st.title("🏫 SURAT eWaste Survey - Data Entry")
+st.title("🏫 SURAT eWaste Survey - Data Form")
 
 tab1, tab2 = st.tabs(["💻 CAL", "📚 Gyankunj"])
 
@@ -26,7 +26,6 @@ def handle_sheet(tab_name):
             st.warning("Google Sheet માં કોઈ ડેટા નથી!")
             return
             
-        # પહેલી રો ને હેડર બનાવીએ
         df = pd.DataFrame(rows[1:], columns=rows[0])
         df.columns = df.columns.str.strip()
 
@@ -37,29 +36,34 @@ def handle_sheet(tab_name):
             
             if code_col:
                 actual_code_col = code_col[0]
-                # તે કોડવાળી રો શોધીએ
                 match_indices = df[df[actual_code_col].astype(str).str.strip() == str(school_code).strip()].index
                 
                 if not match_indices.empty:
                     row_idx = match_indices[0]
+                    school_row = df.iloc[row_idx]
                     
-                    # તે પર્ટીક્યુલર શાળાનો ડેટા કાઢીએ
-                    school_data = df.iloc[[row_idx]]
+                    st.success("શાળાની માહિતી મળી ગઈ છે. નીચે ફોર્મમાં વિગતો ભરો:")
                     
-                    st.success("શાળાની માહિતી મળી ગઈ છે. તમે નીચે ફેરફાર કરી શકો છો:")
-                    
-                    # st.data_editor થી યુઝર ટેબલની અંદર જ ડેટા એડિટ કરી શકશે
-                    edited_df = st.data_editor(school_data, key=f"editor_{tab_name}", num_rows="fixed")
-                    
-                    if st.button("ફેરફાર સેવ કરો", key=f"btn_{tab_name}"):
-                        # એડિટ થયેલી માહિતીને ગૂગલ શીટમાં પાછી અપડેટ કરીએ
-                        sheet_row_idx = row_idx + 2  # હેડર અને 0-indexing ને કારણે +2
-                        updated_values = edited_df.iloc[0].tolist()
+                    # ફોર્મની શરૂઆત
+                    with st.form(key=f"form_{tab_name}"):
+                        updated_data = {}
                         
-                        # આખી રો એકસાથે ગૂગલ શીટમાં અપડેટ થઈ જશે
-                        sheet.update(f"A{sheet_row_idx}", [updated_values])
-                        st.success("માહિતી સફળતાપૂર્વક Google Sheet માં સેવ થઈ ગઈ છે!")
-                        st.rerun()
+                        # દરેક કોલમ માટે એક ઇનપુટ બોક્સ બનાવીશું જેથી ફોર્મ જેવું લાગે
+                        for col in df.columns:
+                            val = str(school_row[col]) if pd.notna(school_row[col]) else ""
+                            # School Code અથવા Sr. નંબર બદલી ન શકાય તેવા રાખી શકીએ અથવા એડિટ કરવા દઈ શકીએ
+                            updated_data[col] = st.text_input(col, value=val)
+                        
+                        submit_button = st.form_submit_button(label="ફેરફાર સેવ કરો")
+                        
+                        if submit_button:
+                            sheet_row_idx = row_idx + 2  # Google sheet ની રો નંબર
+                            new_values = [updated_data[col] for col in df.columns]
+                            
+                            # આખી રો ગૂગલ શીટમાં અપડેટ થઈ જશે
+                            sheet.update(f"A{sheet_row_idx}", [new_values])
+                            st.success("માહિતી સફળતાપૂર્વક Google Sheet માં સેવ થઈ ગઈ છે!")
+                            st.rerun()
                 else:
                     st.error("આ કોડવાળી શાળા મળી નથી!")
             else:
