@@ -15,8 +15,6 @@ def get_sheet(sheet_name):
     return client.open_by_url('https://docs.google.com/spreadsheets/d/1oAeqzK2zgifwn--u2jjYicfmlhpvqhwNAXi1ErMfrIQ/edit').worksheet(sheet_name)
 
 st.title("🏫 SURAT eWaste Survey - Data Form")
-
-# ** અહીં ખાસ સૂચના ઉમેરી દીધી છે **
 st.warning("⚠️ **સૂચના:** હાલ આ સાઇટ પર કામ ચાલી રહ્યું છે, જેથી હમણાં કોઈ પણ જાતની એન્ટ્રી કરવી નહીં.")
 
 tab1, tab2 = st.tabs(["💻 CAL", "📚 Gyankunj"])
@@ -50,10 +48,12 @@ def handle_sheet(tab_name):
                     with st.form(key=f"form_{tab_name}"):
                         updated_data = {}
                         
-                        for col in df.columns:
+                        #enumerate વાપરીએ જેથી આપણને કોલમનો નંબર (index) મળે
+                        for idx, col in enumerate(df.columns):
                             val = str(school_row[col]) if pd.notna(school_row[col]) else ""
                             
-                            if "૨૦૧૧ અથવા તે પહેલા" in col or "૨૦૧૧" in col:
+                            # જો 6 નંબરની કોલમ હોય (તમારા ફોટા મુજબ), તો જ ડ્રોપ-ડાઉન આપો
+                            if idx == 6:
                                 options = ["હા-૧", "ના-૨"]
                                 default_idx = options.index(val) if val in options else 0
                                 updated_data[col] = st.selectbox(col, options, index=default_idx)
