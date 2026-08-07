@@ -25,7 +25,6 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
       return dframe
     return None
 
-  # જો ડેટાબેઝ ફાઇલ ન હોય તો જ અપલોડ ઓપ્શન આપવો
   if not os.path.exists(db_file):
     uploaded_file = st.file_uploader(
         f"કૃપા કરીને તમારી '{default_file_msg}' ફાઇલ અહીં અપલોડ કરો",
@@ -77,7 +76,10 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
     if not code_col:
       code_col = df.columns[4]
 
-    # કુલ, પૂર્ણ અને બાકીની વિગતો એક જ રો માં ટેબલ ફોર્મેટમાં (મોબાઈલ અને ડાર્ક/લાઇટ થીમ ફ્રેન્ડલી)
+    school_name_col = next(
+        (c for c in df.columns if "school name" in c.lower()), df.columns[5]
+    )
+
     total_schools = len(df)
     completed_schools = (
         len(df[df["Status"] == "Completed"])
@@ -88,25 +90,43 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
 
     st.markdown(
         f"""
-        <table style="width:100%; text-align:center; border-collapse: collapse; margin-bottom: 15px; font-size: 14px;">
+        <table style="width:100%; text-align:center; border-collapse: collapse; margin-bottom: 10px; font-size: 14px;">
           <tr style="border-bottom: 2px solid #ccc;">
-            <th style="padding: 8px;">કુલ શાળાઓ</th>
-            <th style="padding: 8px;">🟢 પૂર્ણ થયેલ</th>
-            <th style="padding: 8px;">🟡 બાકી</th>
+            <th style="padding: 6px;">કુલ શાળાઓ</th>
+            <th style="padding: 6px;">🟢 પૂર્ણ થયેલ</th>
+            <th style="padding: 6px;">🟡 બાકી</th>
           </tr>
           <tr>
-            <td style="padding: 8px; font-weight: bold; font-size: 16px;">{total_schools}</td>
-            <td style="padding: 8px; font-weight: bold; font-size: 16px; color: #28a745;">{completed_schools}</td>
-            <td style="padding: 8px; font-weight: bold; font-size: 16px; color: #ffc107;">{pending_schools}</td>
+            <td style="padding: 6px; font-weight: bold; font-size: 15px;">{total_schools}</td>
+            <td style="padding: 6px; font-weight: bold; font-size: 15px; color: #28a745;">{completed_schools}</td>
+            <td style="padding: 6px; font-weight: bold; font-size: 15px; color: #ffc107;">{pending_schools}</td>
           </tr>
         </table>
         """,
         unsafe_allow_html=True,
     )
 
+    # ---------------------------------------------------------
+    # બાકી (Pending) શાળાઓની યાદી જોવા માટેનું ડ્રોપડાઉન
+    # ---------------------------------------------------------
+    with st.expander("📋 બાકી (Pending) શાળાઓની યાદી જુઓ"):
+      pending_df = df[df["Status"] != "Completed"]
+      if not pending_df.empty:
+        display_cols = [
+            c
+            for c in [code_col, school_name_col]
+            if c in pending_df.columns
+        ]
+        st.dataframe(
+            pending_df[display_cols], use_container_width=True, hide_index=True
+        )
+      else:
+        st.success(
+            "🎉 અભિનંદન! આ ટેબની તમામ શાળાઓની એન્ટ્રી પૂર્ણ થઈ ગઈ છે!"
+        )
+
     st.markdown("---")
 
-    # School Code સર્ચ કરવા માટેનું ઇનપુટ બોક્સ
     school_code_input = st.text_input(
         f"🔍 School Code નાખો ({tab_name}):", key=f"input_code_{tab_name}"
     )
@@ -165,10 +185,6 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
           )
 
         with st.form(f"form_{tab_name}"):
-          school_name_col = next(
-              (c for c in df.columns if "school name" in c.lower()),
-              df.columns[5],
-          )
           st.subheader(f"શાળાનું નામ: {row.get(school_name_col, 'N/A')}")
           st.markdown("---")
 
@@ -234,7 +250,6 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
         if form_submitted:
           error_occurred = False
 
-          # ૧. ખાલી ખાના ચેક કરવા
           for col_name, new_val in updated_values.items():
             if not any(
                 ne.lower() in col_name.lower() for ne in non_editable_cols
@@ -248,7 +263,6 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
                 )
                 error_occurred = True
 
-          # ૨. ઓરિજિનલ લિમિટ સાથે સરખામણી
           if not error_occurred:
             school_limits = st.session_state[session_key_limits][
                 current_school_code
@@ -264,7 +278,6 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
                   )
                   error_occurred = True
 
-          # ૩. સેવ કરવું
           if not error_occurred:
             for col_name, new_val in updated_values.items():
               if not any(
@@ -279,7 +292,7 @@ def handle_survey_portal(tab_name, db_file, default_file_msg):
             conn.close()
 
             st.success("Data is updated successfully")
-            st.balloons()
+            st.rerun()
 
       else:
         st.warning("આવા School Code વાળી કોઈ શાળા મળતી નથી.")
