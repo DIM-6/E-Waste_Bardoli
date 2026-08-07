@@ -117,6 +117,7 @@ def handle_sheet(tab_name):
                 
                 updated_inputs = {}
                 has_error = False
+                empty_fields_exist = False # ખાલી ફિલ્ડ ચેક કરવા માટેનું નવું લોજિક
                 
                 for i, col in enumerate(header):
                     m_val = str(m_row_data[col]).strip()
@@ -125,24 +126,49 @@ def handle_sheet(tab_name):
                     is_disabled = (i <= 5) or (i >= num_cols - 2)
                     
                     if is_disabled:
-                        # ડિસેબલ કોલમમાં Master શીટનો ડેટા બતાવો (જેમ કે નામ, કોડ વગેરે)
+                        # ડિસેબલ કોલમમાં Master શીટનો ડેટા બતાવો
                         display_val = m_val 
                         st.text_input(col, value=display_val, disabled=True, key=f"{tab_name}_{col}_{e_idx}")
                         updated_inputs[col] = display_val
                     else:
-                        # એડિટ કરવાવાળી કોલમમાં: જો યુઝરે Entry કરી હોય તો e_val, નહીંતર ખાલી (blank)
                         display_val = e_val 
-                        user_val = st.text_input(col, value=display_val, key=f"{tab_name}_{col}_{e_idx}")
                         
-                        # --- ૪. Max Number Logic (મૂળ Data શીટ સાથે સરખામણી) ---
-                        if user_val.isdigit() and m_val.isdigit():
-                            if int(user_val) > int(m_val):
-                                st.error(f"⚠️ ભૂલ: '{col}' માં તમે મૂળ સંખ્યા ({m_val}) થી મોટી સંખ્યા ({user_val}) ન લખી શકો!")
-                                has_error = True 
+                        # --- ૪. ડ્રોપડાઉન (Selectbox) લોજિક ---
+                        if "હા-૧" in col and ("ના-ર" in col or "ના-૨" in col):
+                            options = ["", "હા-૧", "ના-ર"]
+                            
+                            default_idx = 0
+                            if display_val in options:
+                                default_idx = options.index(display_val)
+                            elif display_val.strip() == "1" or "હા" in display_val:
+                                default_idx = 1
+                            elif display_val.strip() == "2" or display_val.strip() == "ર" or "ના" in display_val:
+                                default_idx = 2
+                                
+                            user_val = st.selectbox(col, options=options, index=default_idx, key=f"{tab_name}_{col}_{e_idx}")
+                            
+                        # અન્ય તમામ કૉલમ માટે સામાન્ય ટેક્સ્ટ ઇનપુટ બતાવો
+                        else:
+                            user_val = st.text_input(col, value=display_val, key=f"{tab_name}_{col}_{e_idx}")
+                            
+                            # --- ૫. Max Number Logic (મૂળ Data શીટ સાથે સરખામણી) ---
+                            if user_val.isdigit() and m_val.isdigit():
+                                if int(user_val) > int(m_val):
+                                    st.error(f"⚠️ ભૂલ: '{col}' માં તમે મૂળ સંખ્યા ({m_val}) થી મોટી સંખ્યા ({user_val}) ન લખી શકો!")
+                                    has_error = True 
                         
+                        # ખાલી ફિલ્ડ ચેકિંગ લોજિક
+                        if str(user_val).strip() == "":
+                            empty_fields_exist = True
+                            
                         updated_inputs[col] = user_val
                 
-                # --- ૫. ફેરફાર સેવ કરો (માત્ર Entry શીટમાં જ લખાશે) ---
+                # જો કોઈ પણ ફિલ્ડ ખાલી હશે, તો બટન ડિસેબલ થઈ જશે
+                if empty_fields_exist:
+                    st.warning("⚠️ કૃપા કરીને બધા ખાનાં ભરો. કોઈ પણ ખાનું ખાલી હશે તો ડેટા સેવ થશે નહીં.")
+                    has_error = True
+                
+                # --- ૬. ફેરફાર સેવ કરો (માત્ર Entry શીટમાં જ લખાશે) ---
                 if st.button("ફેરફાર સેવ કરો", disabled=has_error, type="primary", key=f"save_{tab_name}_{e_idx}"):
                     with st.spinner(f"માહિતી '{entry_sheet_name}' શીટમાં સેવ થઈ રહી છે..."):
                         sheet_row_idx = e_idx + 2 
