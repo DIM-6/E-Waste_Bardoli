@@ -46,7 +46,7 @@ def handle_sheet(tab_name):
 
         original_df = st.session_state['original_df_cache'][tab_name]
 
-        # --- ઉપરની રો (Row) માં કુલ, પૂર્ણ અને બાકી એન્ટ્રી (મેટ્રિક્સ ફોર્મેટ) ---
+        # --- એક જ લાઇન (Flexbox) માં કુલ, પૂર્ણ અને બાકી એન્ટ્રી (મોબાઈલ અને ડેસ્કટોપ માટે પરફેક્ટ) ---
         total_schools = len(current_df)
         try:
             completed_entries = len(current_df[current_df["Standalone desktop computers"].astype(str).str.strip() != "0"])
@@ -54,13 +54,24 @@ def handle_sheet(tab_name):
             completed_entries = 0
         pending_entries = total_schools - completed_entries
 
-        st.markdown(f"### 📊 શાળાઓની સ્થિતિ ({tab_name})")
-        col1, col2, col3 = st.columns(3)
-        col1.metric("કુલ શાળાઓ", total_schools)
-        col2.metric("એન્ટ્રી પૂર્ણ", completed_entries)
-        col3.metric("બાકી એન્ટ્રી", pending_entries)
+        st.markdown(f"""
+            <div style="display: flex; justify-content: space-between; background-color: #f0f2f6; padding: 15px; border-radius: 10px;">
+                <div style="text-align: center;">
+                    <div style="font-size: 12px; color: #555;">કુલ શાળાઓ</div>
+                    <div style="font-size: 20px; font-weight: bold;">{total_schools}</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 12px; color: #555;">એન્ટ્રી પૂર્ણ</div>
+                    <div style="font-size: 20px; font-weight: bold; color: green;">{completed_entries}</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 12px; color: #555;">બાકી એન્ટ્રી</div>
+                    <div style="font-size: 20px; font-weight: bold; color: red;">{pending_entries}</div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
         
-        st.markdown("---")
+        st.markdown("<br>", unsafe_allow_html=True)
 
         # --- પેન્ડિંગ શાળાઓ જોવા માટેનું બટન ---
         with st.expander(f"📋 બાકી રહેલી શાળાઓનું લિસ્ટ જુઓ ({tab_name})"):
