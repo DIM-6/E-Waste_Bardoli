@@ -48,17 +48,19 @@ def handle_sheet(tab_name):
                     with st.form(key=f"form_{tab_name}"):
                         updated_data = {}
                         
-                        #enumerate વાપરીએ જેથી આપણને કોલમનો નંબર (index) મળે
+                        # અહીં આપણે કોલમનો ઇન્ડેક્સ ચેક કરીને લોક કરીશું
                         for idx, col in enumerate(df.columns):
                             val = str(school_row[col]) if pd.notna(school_row[col]) else ""
                             
-                            # જો 6 નંબરની કોલમ હોય (તમારા ફોટા મુજબ), તો જ ડ્રોપ-ડાઉન આપો
-                            if idx == 6:
+                            # 0 થી 5 નંબરની કોલમ (Sr. થી School Name સુધી) લોક કરીશું
+                            is_locked = idx <= 5 
+                            
+                            if idx == 6: # કોમ્પ્યુટર લેબ વાળો પ્રશ્ન (ડ્રોપ-ડાઉન)
                                 options = ["હા-૧", "ના-૨"]
                                 default_idx = options.index(val) if val in options else 0
                                 updated_data[col] = st.selectbox(col, options, index=default_idx)
                             else:
-                                updated_data[col] = st.text_input(col, value=val)
+                                updated_data[col] = st.text_input(col, value=val, disabled=is_locked)
                         
                         submit_button = st.form_submit_button(label="ફેરફાર સેવ કરો")
                         
