@@ -44,23 +44,28 @@ def handle_sheet(tab_name):
                     
                     st.success("શાળાની માહિતી મળી ગઈ છે. નીચે ફોર્મમાં વિગતો ભરો:")
                     
-                    # ફોર્મની શરૂઆત
                     with st.form(key=f"form_{tab_name}"):
                         updated_data = {}
                         
-                        # દરેક કોલમ માટે એક ઇનપુટ બોક્સ બનાવીશું જેથી ફોર્મ જેવું લાગે
                         for col in df.columns:
                             val = str(school_row[col]) if pd.notna(school_row[col]) else ""
-                            # School Code અથવા Sr. નંબર બદલી ન શકાય તેવા રાખી શકીએ અથવા એડિટ કરવા દઈ શકીએ
-                            updated_data[col] = st.text_input(col, value=val)
+                            
+                            # જો કોલમનું નામ પેલા પ્રશ્ન જેવું હોય તો ડ્રોપ-ડાઉન (selectbox) આપીએ
+                            if "૨૦૧૧ અથવા તે પહેલા" in col or "૨૦૧૧" in col:
+                                # શીટમાં જે જૂની કિંમત હોય તેને ડિફોલ્ટ પકડવા માટે
+                                options = ["હા-૧", "ના-૨"]
+                                default_idx = options.index(val) if val in options else 0
+                                updated_data[col] = st.selectbox(col, options, index=default_idx)
+                            else:
+                                # બાકીના બધા માટે નોર્મલ ટેક્સ્ટ ઇનપુટ
+                                updated_data[col] = st.text_input(col, value=val)
                         
                         submit_button = st.form_submit_button(label="ફેરફાર સેવ કરો")
                         
                         if submit_button:
-                            sheet_row_idx = row_idx + 2  # Google sheet ની રો નંબર
+                            sheet_row_idx = row_idx + 2 
                             new_values = [updated_data[col] for col in df.columns]
                             
-                            # આખી રો ગૂગલ શીટમાં અપડેટ થઈ જશે
                             sheet.update(f"A{sheet_row_idx}", [new_values])
                             st.success("માહિતી સફળતાપૂર્વક Google Sheet માં સેવ થઈ ગઈ છે!")
                             st.rerun()
