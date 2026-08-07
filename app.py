@@ -3,8 +3,9 @@ import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Google Sheets કનેક્શન સેટઅપ
-def get_sheet(sheet_name):
+# Google Sheets કનેક્શન સેટઅપ (કેશિંગ સાથે જેથી Quota Exceeded એરર ન આવે)
+@st.cache_data(ttl=600)  # 10 મિનિટ સુધી ડેટા કેશ રહેશે
+def get_sheet_data(sheet_name):
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     creds_dict = dict(st.secrets["gcp"])
     if '\\n' in creds_dict['private_key']:
@@ -12,21 +13,20 @@ def get_sheet(sheet_name):
         
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
-    return client.open_by_url('https://docs.google.com/spreadsheets/d/1oAeqzK2zgifwn--u2jjYicfmlhpvqhwNAXi1ErMfrIQ/edit').worksheet(sheet_name)
+    sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1oAeqzK2zgifwn--u2jjYicfmlhpvqhwNAXi1ErMfrIQ/edit').worksheet(sheet_name)
+    return sheet.get_all_values(), sheet
 
 st.title("🏫 SURAT eWaste Survey - Data Form")
-st.warning("⚠️ **સૂચના:** હાલ આ સાઇટ પર કામ ચાલી રહી રહ્યું છે, જેથી હમણાં કોઈ પણ જાતની એન્ટ્રી કરવી નહીં.")
+st.warning("⚠️ **સૂચના:** હાલ આ સાઇટ પર કામ ચાલી રહ્યું છે, જેથી હમણાં કોઈ પણ જાતની એન્ટ્રી કરવી નહીં.")
 
 tab1, tab2 = st.tabs(["💻 CAL", "📚 Gyankunj"])
 
-# કેશ (Session State) માં મૂળ ડેટા સાચવી રાખવા માટે જેથી એરર ન આવે
 if 'original_df_cache' not in st.session_state:
     st.session_state['original_df_cache'] = {}
 
 def handle_sheet(tab_name):
     try:
-        sheet = get_sheet(tab_name)
-        rows = sheet.get_all_values()
+        rows, sheet = get_sheet_data(tab_name)
         if len(rows) < 2:
             st.warning("Google Sheet માં કોઈ ડેટા નથી!")
             return
@@ -34,7 +34,6 @@ def handle_sheet(tab_name):
         current_df = pd.DataFrame(rows[1:], columns=rows[0])
         current_df.columns = current_df.columns.str.strip()
 
-        # જો આ ટેબનો ઓરિજિનલ ડેટા સેવ ન થયો હોય, તો પહેલીવાર જે ડેટા મળે તેને જ લાઈફટાઇમ ઓરિજિનલ માની લઈશું
         if tab_name not in st.session_state['original_df_cache']:
             st.session_state['original_df_cache'][tab_name] = current_df.copy()
 
@@ -51,8 +50,6 @@ def handle_sheet(tab_name):
                 
                 if not match_indices.empty:
                     row_idx = match_indices[0]
-                    
-                    # વર્તમાન ડેટા અને મૂળ (ઓરિજિનલ) ડેટા બંનેમાંથી તે શાળાની રો લઈએ
                     current_school_row = current_df.iloc[row_idx]
                     original_school_row = original_df.iloc[row_idx]
                     
@@ -82,7 +79,6 @@ def handle_sheet(tab_name):
                             elif start_limit_idx <= idx <= end_limit_idx:
                                 user_input = st.text_input(col, value=val)
                                 
-                                # અહીં હંમેશાં 'original_school_row' (એટલે કે એકદમ પહેલો મૂળ ડેટા) જ સરખામણી માટે પકડીશું
                                 orig_val_str = str(original_school_row[col]).strip()
                                 original_num = int(orig_val_str) if orig_val_str.isdigit() else 0
                                 
@@ -111,6 +107,8 @@ def handle_sheet(tab_name):
                                 new_values = [updated_data[col] for col in current_df.columns]
                                 
                                 sheet.update(f"A{sheet_row_idx}", [new_values])
+                                # ડેટા અપડેટ થયા પછી કેશ ક્લિયર કરીએ જેથી નવો ડેટા તરત દેખાય
+                                st.cache_data.clear()
                                 st.success("માહિતી સફળતાપૂર્વક Google Sheet માં સેવ થઈ ગઈ છે!")
                                 st.rerun()
                 else:
