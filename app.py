@@ -12,7 +12,9 @@ def get_sheet_data(sheet_name):
     creds = Credentials.from_service_account_info(creds_dict, scopes=["https://www.googleapis.com/auth/spreadsheets"])
     service = build('sheets', 'v4', credentials=creds)
     spreadsheet_id = "1oAeqzK2zgifwn--u2jjYicfmlhpvqhwNAXi1ErMfrIQ"
-    result = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=f"{sheet_name}!A:Z").execute()
+    
+    # આખી શીટનો ડેટા મેળવો (બધી જ કૉલમ્સ કવર થઈ જાય તે માટે)
+    result = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=f"{sheet_name}!A1:ZZ1000").execute()
     return result.get('values', []), service, spreadsheet_id
 
 st.title("🏫 SURAT eWaste Survey - Data Form")
@@ -27,9 +29,18 @@ def handle_sheet(tab_name):
             st.warning("Google Sheet માં ડેટા નથી!")
             return
             
-        header = [str(c).strip() for c in rows[0]] 
-        df = pd.DataFrame(rows[1:], columns=header)
-        df.columns = df.columns.str.strip()
+        header = [str(c).strip() for c in rows[0] if str(c).strip() != ""]
+        num_cols = len(header)
+        
+        # ડેટાને હેડર મુજબ ફ્રેમમાં ફિટ કરો
+        data_rows = []
+        for r in rows[1:]:
+            # જો કોઈ રો માં કૉલમ ઓછી હોય તો પાછળ ખાલી જગ્યા ભરી દો
+            while len(r) < num_cols:
+                r.append("")
+            data_rows.append(r[:num_cols])
+            
+        df = pd.DataFrame(data_rows, columns=header)
         
         status_col = header[-2]
         ts_col = header[-1]
@@ -63,13 +74,12 @@ def handle_sheet(tab_name):
                     with st.form(key=f"form_{tab_name}"):
                         updated_inputs = {}
                         
-                        # બધી જ કૉલમ્સ ફોર્મમાં દેખાડવી
                         for i, col in enumerate(header):
                             val = str(row_data[col]) if col in row_data and pd.notna(row_data[col]) else ""
-                            is_disabled = (i <= 5) or (i >= len(header) - 2)
+                            is_disabled = (i <= 5) or (i >= num_cols - 2)
                             
-                            if i >= len(header) - 2 and (not val or val == "nan"):
-                                val = "Completed" if i == len(header) - 2 else ""
+                            if i >= num_cols - 2 and (not val or val == "nan"):
+                                val = "Completed" if i == num_cols - 2 else ""
                                 
                             updated_inputs[col] = st.text_input(col, value=val, disabled=is_disabled)
                         
@@ -78,17 +88,19 @@ def handle_sheet(tab_name):
                                 sheet_row_idx = idx + 2 
                                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                 
-                                # જૂના ડેટા પર આધાર રાખ્યા વગર, હેડરની લંબાઈ મુજબ નવું પરફેક્ટ લિસ્ટ બનાવીએ છીએ
+                                # હેડરની બરાબર સાઈઝ (`num_cols`) જેટલું જ લિસ્ટ બનાવીશું
                                 final_values = []
                                 for i, col_name in enumerate(header):
-                                    if i == len(header) - 2:  # Entry Status
+                                    if i == num_cols - 2:  # Entry Status
                                         final_values.append("Completed")
-                                    elif i == len(header) - 1: # TimeStamp
+                                    elif i == num_cols - 1: # TimeStamp
                                         final_values.append(current_time)
                                     else:
-                                        # બાકીની કૉલમ્સમાં યુઝરે ભરેલી અથવા જૂની વેલ્યુ મૂકો
                                         val = updated_inputs.get(col_name, row_data.get(col_name, ""))
                                         final_values.append(str(val))
+                                        
+                                # ખાતરી કરો કે લંબાઈ એકદમ પરફેક્ટ હેડર જેટલી જ છે
+                                final_values = final_values[:num_cols]
                                 
                                 body = {'values': [final_values]}
                                 service.spreadsheets().values().update(
