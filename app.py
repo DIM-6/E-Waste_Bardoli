@@ -68,8 +68,10 @@ def handle_sheet(tab_name):
                     with st.form(key=f"form_{tab_name}"):
                         updated_inputs = {}
                         for i, col in enumerate(header):
+                            # જે ડેટા શીટમાં છે તે જ અહીં દેખાશે (જો ખાલી હશે તો ખાલી દેખાશે)
                             val = str(row_data[col]) if col in row_data else ""
-                            # પહેલી 5 કૉલમ અને છેલ્લી 2 કૉલમ Disable (Read-only)
+                            
+                            # પહેલી 5 કૉલમ Disable, છેલ્લી 2 કૉલમ પણ Disable (માત્ર વાંચવા માટે)
                             is_disabled = (i <= 5) or (i >= num_cols - 2)
                             updated_inputs[col] = st.text_input(col, value=val, disabled=is_disabled)
                         
@@ -85,6 +87,7 @@ def handle_sheet(tab_name):
                                     elif i == num_cols - 1: # TimeStamp
                                         final_values.append(current_time)
                                     else:
+                                        # બાકીની કૉલમ્સમાં જે છે તે જ રહેશે
                                         val = updated_inputs.get(col_name, row_data.get(col_name, ""))
                                         final_values.append(str(val))
                                 
