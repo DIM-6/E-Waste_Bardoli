@@ -3,7 +3,7 @@ import pandas as pd
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
-# ગૂગલ શીટ્સ API કનેક્શન (એરર વગરનું લેટેસ્ટ સેટઅપ)
+# ગૂગલ શીટ્સ API કનેક્શન (લેટેસ્ટ અને એરર ફ્રી પદ્ધતિ)
 @st.cache_data(ttl=600)
 def get_sheet_data(sheet_name):
     creds_dict = dict(st.secrets["gcp"])
@@ -16,7 +16,6 @@ def get_sheet_data(sheet_name):
     service = build('sheets', 'v4', credentials=creds)
     spreadsheet_id = "1oAeqzK2zgifwn--u2jjYicfmlhpvqhwNAXi1ErMfrIQ"
     
-    # આખી શીટનો ડેટા મેળવીએ
     result = service.spreadsheets().values().get(
         spreadsheetId=spreadsheet_id, range=f"{sheet_name}!A:Z"
     ).execute()
@@ -105,27 +104,28 @@ def handle_sheet(tab_name):
                             else:
                                 updated_data[col] = st.text_input(col, value=val, disabled=is_locked)
                         
+                        # ફોર્મ સબમિટ બટન
                         submit_button = st.form_submit_button(label="ફેરફાર સેવ કરો")
                         
                         if submit_button:
                             if has_error:
                                 st.error("કૃપા કરીને ભૂલો સુધારીને ફરીથી પ્રયત્ન કરો.")
                             else:
-                                sheet_row_idx = row_idx + 2 
-                                new_values = [updated_data[col] for col in current_df.columns]
-                                
-                                # Google Sheets API થી ડેટા અપડેટ કરવાની પદ્ધતિ
-                                body = {'values': [new_values]}
-                                service.spreadsheets().values().update(
-                                    spreadsheetId=spreadsheet_id,
-                                    range=f"{tab_name}!A{sheet_row_idx}",
-                                    valueInputOption="RAW",
-                                    body=body
-                                ).execute()
-                                
-                                st.cache_data.clear()
-                                st.success("માહિતી સફળતાપૂર્વક Google Sheet માં સેવ થઈ ગઈ છે!")
-                                st.rerun()
+                                with st.spinner('માહિતી સેવ થઈ રહી છે, કૃપા કરીને રાહ જુઓ...'):
+                                    sheet_row_idx = row_idx + 2 
+                                    new_values = [updated_data[col] for col in current_df.columns]
+                                    
+                                    body = {'values': [new_values]}
+                                    service.spreadsheets().values().update(
+                                        spreadsheetId=spreadsheet_id,
+                                        range=f"{tab_name}!A{sheet_row_idx}",
+                                        valueInputOption="RAW",
+                                        body=body
+                                    ).execute()
+                                    
+                                    st.cache_data.clear()
+                                    st.success("માહિતી સફળતાપૂર્વક Google Sheet માં સેવ થઈ ગઈ છે!")
+                                    st.rerun()
                 else:
                     st.error("આ કોડવાળી શાળા મળી નથી!")
             else:
