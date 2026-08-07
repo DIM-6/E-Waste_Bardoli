@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import time  # ફોર્મ રીસેટ કરતી વખતે થોડો સમય રોકાવા માટે
 from datetime import datetime
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
@@ -117,7 +118,7 @@ def handle_sheet(tab_name):
                 
                 updated_inputs = {}
                 has_error = False
-                empty_fields_exist = False # ખાલી ફિલ્ડ ચેક કરવા માટેનું નવું લોજિક
+                empty_fields_exist = False # ખાલી ફિલ્ડ ચેક કરવા માટેનું લોજિક
                 
                 for i, col in enumerate(header):
                     m_val = str(m_row_data[col]).strip()
@@ -190,8 +191,12 @@ def handle_sheet(tab_name):
                         ).execute()
                         
                         st.cache_data.clear()
+                        
+                        # --- ૭. ફોર્મ રીસેટ લોજિક (Form Reset) ---
                         st.success("માહિતી સફળતાપૂર્વક સેવ થઈ ગઈ છે!")
-                        st.rerun()
+                        time.sleep(1.5) # યુઝરને મેસેજ વાંચવા માટે 1.5 સેકન્ડનો સમય આપો
+                        st.session_state[f"input_{tab_name}"] = "" # સર્ચ બોક્સ ખાલી કરી દો (ફોર્મ રીસેટ)
+                        st.rerun() # પેજ રિફ્રેશ કરો
             else:
                 st.error("આ કોડવાળી શાળા ડેટાબેઝમાં મળી નથી! (શાળાનો કોડ બંને શીટમાં હોવો જરૂરી છે)")
 
