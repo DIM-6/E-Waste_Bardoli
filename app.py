@@ -1,21 +1,28 @@
 import streamlit as st
 import pandas as pd
-import gspread
 from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
 
-# Google Sheets કનેક્શન સેટઅપ (લેટેસ્ટ અને એરર ફ્રી પદ્ધતિ)
+# ગૂગલ શીટ્સ API કનેક્શન (એરર વગરનું લેટેસ્ટ સેટઅપ)
 @st.cache_data(ttl=600)
 def get_sheet_data(sheet_name):
     creds_dict = dict(st.secrets["gcp"])
     if '\\n' in creds_dict['private_key']:
         creds_dict['private_key'] = creds_dict['private_key'].replace('\\n', '\n')
         
-    scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-    client = gspread.authorize(creds)
     
-    sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1oAeqzK2zgifwn--u2jjYicfmlhpvqhwNAXi1ErMfrIQ/edit').worksheet(sheet_name)
-    return sheet.get_all_values(), sheet
+    service = build('sheets', 'v4', credentials=creds)
+    spreadsheet_id = "1oAeqzK2zgifwn--u2jjYicfmlhpvqhwNAXi1ErMfrIQ"
+    
+    # આખી શીટનો ડેટા મેળવીએ
+    result = service.spreadsheets().values().get(
+        spreadsheetId=spreadsheet_id, range=f"{sheet_name}!A:Z"
+    ).execute()
+    
+    rows = result.get('values', [])
+    return rows, service, spreadsheet_id, sheet_name
 
 st.title("🏫 SURAT eWaste Survey - Data Form")
 st.warning("⚠️ **સૂચના:** હાલ આ સાઇટ પર કામ ચાલી રહ્યું છે, જેથી હમણાં કોઈ પણ જાતની એન્ટ્રી કરવી નહીં.")
@@ -27,7 +34,7 @@ if 'original_df_cache' not in st.session_state:
 
 def handle_sheet(tab_name):
     try:
-        rows, sheet = get_sheet_data(tab_name)
+        rows, service, spreadsheet_id, range_name = get_sheet_data(tab_name)
         if len(rows) < 2:
             st.warning("Google Sheet માં કોઈ ડેટા નથી!")
             return
@@ -107,7 +114,15 @@ def handle_sheet(tab_name):
                                 sheet_row_idx = row_idx + 2 
                                 new_values = [updated_data[col] for col in current_df.columns]
                                 
-                                sheet.update(f"A{sheet_row_idx}", [new_values])
+                                # Google Sheets API થી ડેટા અપડેટ કરવાની પદ્ધતિ
+                                body = {'values': [new_values]}
+                                service.spreadsheets().values().update(
+                                    spreadsheetId=spreadsheet_id,
+                                    range=f"{tab_name}!A{sheet_row_idx}",
+                                    valueInputOption="RAW",
+                                    body=body
+                                ).execute()
+                                
                                 st.cache_data.clear()
                                 st.success("માહિતી સફળતાપૂર્વક Google Sheet માં સેવ થઈ ગઈ છે!")
                                 st.rerun()
