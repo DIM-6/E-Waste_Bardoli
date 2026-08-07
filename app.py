@@ -65,14 +65,16 @@ def handle_sheet(tab_name):
         completed = len(completed_codes)
         pending = total - completed
         
-        st.markdown(f"""
-            <div style="display: flex; justify-content: space-between; background-color: #f0f2f6; padding: 15px; border-radius: 10px;">
-                <div style="text-align: center;"><div>કુલ શાળાઓ ({master_sheet_name})</div><div style="font-size: 18px; font-weight: bold;">{total}</div></div>
-                <div style="text-align: center;"><div>એન્ટ્રી પૂર્ણ ({entry_sheet_name})</div><div style="font-size: 18px; font-weight: bold; color: green;">{completed}</div></div>
-                <div style="text-align: center;"><div>બાકી એન્ટ્રી</div><div style="font-size: 18px; font-weight: bold; color: red;">{pending}</div></div>
-            </div>
-        """, unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
+        # ડાર્ક/લાઈટ થીમ અને મોબાઈલ માટે પરફેક્ટ ડેશબોર્ડ (st.metric નો ઉપયોગ)
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric(label=f"કુલ શાળાઓ ({master_sheet_name})", value=total)
+        with col2:
+            st.metric(label=f"એન્ટ્રી પૂર્ણ ({entry_sheet_name})", value=completed)
+        with col3:
+            st.metric(label="બાકી એન્ટ્રી", value=pending)
+        
+        st.markdown("---") # ડેશબોર્ડ નીચે એક લાઈન દોરવા માટે
         
         # --- ૨. પેન્ડિંગ શાળાઓની યાદી (Pending List) ---
         with st.expander(f"📋 બાકી રહેલી શાળાઓની યાદી જુઓ ({tab_name})"):
