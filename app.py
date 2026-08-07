@@ -15,9 +15,13 @@ def get_sheet(sheet_name):
     return client.open_by_url('https://docs.google.com/spreadsheets/d/1oAeqzK2zgifwn--u2jjYicfmlhpvqhwNAXi1ErMfrIQ/edit').worksheet(sheet_name)
 
 st.title("🏫 SURAT eWaste Survey - Data Form")
-st.warning("⚠️ **સૂચના:** હાલ આ સાઇટ પર કામ ચાલી રહ્યું છે, જેથી હમણાં કોઈ પણ જાતની એન્ટ્રી કરવી નહીં.")
+st.warning("⚠️ **સૂચના:** હાલ આ સાઇટ પર કામ ચાલી રહી રહ્યું છે, જેથી હમણાં કોઈ પણ જાતની એન્ટ્રી કરવી નહીં.")
 
 tab1, tab2 = st.tabs(["💻 CAL", "📚 Gyankunj"])
+
+# કેશ (Session State) માં મૂળ ડેટા સાચવી રાખવા માટે જેથી એરર ન આવે
+if 'original_df_cache' not in st.session_state:
+    st.session_state['original_df_cache'] = {}
 
 def handle_sheet(tab_name):
     try:
@@ -27,32 +31,39 @@ def handle_sheet(tab_name):
             st.warning("Google Sheet માં કોઈ ડેટા નથી!")
             return
             
-        df = pd.DataFrame(rows[1:], columns=rows[0])
-        df.columns = df.columns.str.strip()
+        current_df = pd.DataFrame(rows[1:], columns=rows[0])
+        current_df.columns = current_df.columns.str.strip()
+
+        # જો આ ટેબનો ઓરિજિનલ ડેટા સેવ ન થયો હોય, તો પહેલીવાર જે ડેટા મળે તેને જ લાઈફટાઇમ ઓરિજિનલ માની લઈશું
+        if tab_name not in st.session_state['original_df_cache']:
+            st.session_state['original_df_cache'][tab_name] = current_df.copy()
+
+        original_df = st.session_state['original_df_cache'][tab_name]
 
         school_code = st.text_input(f"School Code નાખો ({tab_name}):", key=f"input_{tab_name}")
         
         if school_code:
-            code_col = [c for c in df.columns if 'code' in c.lower() or 'sch' in c.lower()]
+            code_col = [c for c in current_df.columns if 'code' in c.lower() or 'sch' in c.lower()]
             
             if code_col:
                 actual_code_col = code_col[0]
-                match_indices = df[df[actual_code_col].astype(str).str.strip() == str(school_code).strip()].index
+                match_indices = current_df[current_df[actual_code_col].astype(str).str.strip() == str(school_code).strip()].index
                 
                 if not match_indices.empty:
                     row_idx = match_indices[0]
-                    school_row = df.iloc[row_idx]
+                    
+                    # વર્તમાન ડેટા અને મૂળ (ઓરિજિનલ) ડેટા બંનેમાંથી તે શાળાની રો લઈએ
+                    current_school_row = current_df.iloc[row_idx]
+                    original_school_row = original_df.iloc[row_idx]
                     
                     st.success("શાળાની માહિતી મળી ગઈ છે. નીચે ફોર્મમાં વિગતો ભરો:")
                     
-                    # 'Standalone desktop computers' અને '600 VA Line Interactive UPS' ના ઇન્ડેક્સ શોધી લઈએ
-                    cols_list = list(df.columns)
+                    cols_list = list(current_df.columns)
                     try:
                         start_limit_idx = cols_list.index("Standalone desktop computers")
-                        # 600 VA વાળી કોલમનું નામ બરાબર મેચ થાય તે માટે શોધીએ
                         end_limit_idx = [i for i, c in enumerate(cols_list) if "600 VA" in c][0]
                     except:
-                        start_limit_idx = 12  # ડિફોલ્ટ અંદાજિત રેન્જ
+                        start_limit_idx = 12
                         end_limit_idx = 25
 
                     with st.form(key=f"form_{tab_name}"):
@@ -60,21 +71,20 @@ def handle_sheet(tab_name):
                         has_error = False
                         
                         for idx, col in enumerate(cols_list):
-                            val = str(school_row[col]) if pd.notna(school_row[col]) else ""
-                            is_locked = idx <= 5  # Sr. થી School Name સુધી લોક
+                            val = str(current_school_row[col]) if pd.notna(current_school_row[col]) else ""
+                            is_locked = idx <= 5  
                             
-                            if idx == 6:  # કોમ્પ્યુટર લેબ ડ્રોપ-ડાઉન
+                            if idx == 6:  
                                 options = ["હા-૧", "ના-૨"]
                                 default_idx = options.index(val) if val in options else 0
                                 updated_data[col] = st.selectbox(col, options, index=default_idx)
                                 
                             elif start_limit_idx <= idx <= end_limit_idx:
-                                # આ રેન્જમાં માત્ર હોલ નંબર અને ઓરિજિનલ ડેટાથી વધારે ન હોવું જોઈએ
                                 user_input = st.text_input(col, value=val)
                                 
-                                # વેલિડેશન ચેક
-                                original_val_str = val.strip()
-                                original_num = int(original_val_str) if original_val_str.isdigit() else 0
+                                # અહીં હંમેશાં 'original_school_row' (એટલે કે એકદમ પહેલો મૂળ ડેટા) જ સરખામણી માટે પકડીશું
+                                orig_val_str = str(original_school_row[col]).strip()
+                                original_num = int(orig_val_str) if orig_val_str.isdigit() else 0
                                 
                                 if user_input.strip().isdigit():
                                     user_num = int(user_input.strip())
@@ -98,7 +108,7 @@ def handle_sheet(tab_name):
                                 st.error("કૃપા કરીને ભૂલો સુધારીને ફરીથી પ્રયત્ન કરો.")
                             else:
                                 sheet_row_idx = row_idx + 2 
-                                new_values = [updated_data[col] for col in df.columns]
+                                new_values = [updated_data[col] for col in current_df.columns]
                                 
                                 sheet.update(f"A{sheet_row_idx}", [new_values])
                                 st.success("માહિતી સફળતાપૂર્વક Google Sheet માં સેવ થઈ ગઈ છે!")
