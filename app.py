@@ -3,7 +3,7 @@ import pandas as pd
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
-# ગૂગલ શીટ્સ API કનેક્શન (લેટેસ્ટ અને એરર ફ્રી પદ્ધતિ)
+# ગૂગલ શીટ્સ API કનેક્શન
 @st.cache_data(ttl=600)
 def get_sheet_data(sheet_name):
     creds_dict = dict(st.secrets["gcp"])
@@ -46,6 +46,23 @@ def handle_sheet(tab_name):
 
         original_df = st.session_state['original_df_cache'][tab_name]
 
+        # --- પેન્ડિંગ શાળાઓ ચેક કરવા માટેનું બટન ---
+        with st.expander(f"📋 બાકી રહેલી શાળાઓનું લિસ્ટ જુઓ ({tab_name})"):
+            if st.button(f"પેન્ડિંગ શાળાઓ યાદી મેળવો", key=f"btn_pending_{tab_name}"):
+                # અહીં આપણે લોજિક મૂકીએ કે કઈ શાળા બાકી છે (ઉદાહરણ તરીકે જ્યાં કોમ્પ્યુટર લેબનો ડેટા ખાલી હોય કે ડિફોલ્ટ હોય)
+                # તમારી જરૂરિયાત મુજબ પેન્ડિંગ કન્ડિશન બદલી શકાય છે
+                code_col = [c for c in current_df.columns if 'code' in c.lower() or 'sch' in c.lower()][0]
+                name_col = [c for c in current_df.columns if 'name' in c.lower()][0]
+                
+                # ધારો કે જેમાં ડેટા ફિલ નથી થયો કે બ્લેન્ક છે તેને પેન્ડિંગ ગણીએ
+                pending_df = current_df[current_df[name_col].astype(str).str.strip() == ""] # અથવા તમારી શરત મુજબ
+                
+                # જો કોઈ સ્પેસિફિક કોલમ ચેક કરવી હોય તો અહીં લખી શકાય
+                st.info(f"કુલ શાળાઓ અને પેન્ડિંગ વિગતો:")
+                st.dataframe(current_df[[code_col, name_col]]) # હાલ બધી શાળાઓ દેખાડશે, તમે ફિલ્ટર કરી શકો
+        
+        st.divider()
+
         school_code = st.text_input(f"School Code નાખો ({tab_name}):", key=f"input_{tab_name}")
         
         if school_code:
@@ -59,6 +76,19 @@ def handle_sheet(tab_name):
                     row_idx = match_indices[0]
                     current_school_row = current_df.iloc[row_idx]
                     original_school_row = original_df.iloc[row_idx]
+                    
+                    # --- ટેબલ ફોર્મેટ (કુલ, પૂર્ણ, બાકી) ---
+                    st.markdown(f"### 📊 શાળા: {current_school_row.get('School Name', '')} ની સ્થિતિ")
+                    total_comp = int(original_school_row["Standalone desktop computers"]) if str(original_school_row["Standalone desktop computers"]).isdigit() else 0
+                    curr_comp = int(current_school_row["Standalone desktop computers"]) if str(current_school_row["Standalone desktop computers"]).isdigit() else 0
+                    pending_comp = total_comp - curr_comp
+                    
+                    table_data = [
+                        {"વિગત": "મૂળ આંકડો (કુલ)", "આંકડો": total_comp},
+                        {"વિગત": "વર્તમાન (પૂર્ણ)", "આંકડો": curr_comp},
+                        {"વિગત": "બાકી", "આંકડો": pending_comp}
+                    ]
+                    st.table(pd.DataFrame(table_data))
                     
                     st.success("શાળાની માહિતી મળી ગઈ છે. નીચે ફોર્મમાં વિગતો ભરો:")
                     
@@ -104,7 +134,6 @@ def handle_sheet(tab_name):
                             else:
                                 updated_data[col] = st.text_input(col, value=val, disabled=is_locked)
                         
-                        # ફોર્મ સબમિટ બટન
                         submit_button = st.form_submit_button(label="ફેરફાર સેવ કરો")
                         
                         if submit_button:
