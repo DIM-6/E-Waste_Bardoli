@@ -1,18 +1,15 @@
 import streamlit as st
 import pandas as pd
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 
-# Google Sheets કનેક્શન સેટઅપ (કેશિંગ સાથે જેથી Quota Exceeded એરર ન આવે)
-@st.cache_data(ttl=600)  # 10 મિનિટ સુધી ડેટા કેશ રહેશે
+# Google Sheets કનેક્શન સેટઅપ (સ્ટાન્ડર્ડ અને એરર વગરનું)
+@st.cache_data(ttl=600)
 def get_sheet_data(sheet_name):
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     creds_dict = dict(st.secrets["gcp"])
     if '\\n' in creds_dict['private_key']:
         creds_dict['private_key'] = creds_dict['private_key'].replace('\\n', '\n')
         
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    client = gspread.authorize(creds)
+    client = gspread.service_account_from_dict(creds_dict)
     sheet = client.open_by_url('https://docs.google.com/spreadsheets/d/1oAeqzK2zgifwn--u2jjYicfmlhpvqhwNAXi1ErMfrIQ/edit').worksheet(sheet_name)
     return sheet.get_all_values(), sheet
 
@@ -107,7 +104,6 @@ def handle_sheet(tab_name):
                                 new_values = [updated_data[col] for col in current_df.columns]
                                 
                                 sheet.update(f"A{sheet_row_idx}", [new_values])
-                                # ડેટા અપડેટ થયા પછી કેશ ક્લિયર કરીએ જેથી નવો ડેટા તરત દેખાય
                                 st.cache_data.clear()
                                 st.success("માહિતી સફળતાપૂર્વક Google Sheet માં સેવ થઈ ગઈ છે!")
                                 st.rerun()
