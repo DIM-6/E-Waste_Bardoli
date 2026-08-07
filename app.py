@@ -47,9 +47,9 @@ def handle_sheet(tab_name):
 
         original_df = st.session_state['original_df_cache'][tab_name]
 
-        # --- Status અને Timestamp કોલમ સેટઅપ ---
-        status_col = "Status"
-        ts_col = "Timestamp"
+        # --- Entry Status અને TimeStamp કૉલમ સેટઅપ ---
+        status_col = "Entry Status"
+        ts_col = "TimeStamp"
         
         # ગણતરી: માત્ર 'Completed' લખેલું હોય તેને જ પૂર્ણ ગણવું
         total_schools = len(current_df)
@@ -124,7 +124,7 @@ def handle_sheet(tab_name):
                         has_error = False
                         
                         for idx, col in enumerate(cols_list):
-                            # Status અને Timestamp ફોર્મમાં એડિટ કરવા માટે નહીં દેખાય
+                            # Entry Status અને TimeStamp કૉલમ ફોર્મમાં એડિટ કરવા માટે નહીં દેખાય
                             if col in [status_col, ts_col]:
                                 updated_data[col] = str(current_school_row[col]) if pd.notna(current_school_row[col]) else ""
                                 continue
@@ -170,7 +170,7 @@ def handle_sheet(tab_name):
                                 with st.spinner('માહિતી સેવ થઈ રહી છે, કૃપા કરીને રાહ જુઓ...'):
                                     sheet_row_idx = row_idx + 2 
                                     
-                                    # સ્ટેટસ અને ટાઈમસ્ટેમ્પ અપડેટ
+                                    # Entry Status માં "Completed" અને TimeStamp માં વર્તમાન સમય સેટ કરો
                                     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                     
                                     if status_col in cols_list:
