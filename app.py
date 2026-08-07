@@ -27,19 +27,17 @@ def handle_sheet(tab_name):
             st.warning("Google Sheet માં ડેટા નથી!")
             return
             
-        header = rows[0] 
+        header = [str(c).strip() for c in rows[0]] 
         df = pd.DataFrame(rows[1:], columns=header)
         df.columns = df.columns.str.strip()
-        header = [str(c).strip() for c in header]
         
-        # છેલ્લી બે કૉલમ્સના નામ (Google Sheet મુજબ)
-        status_col = header[-2] # કે "Entry Status"
-        ts_col = header[-1]     # કે "TimeStamp"
+        status_col = header[-2]
+        ts_col = header[-1]
         
         total = len(df)
         completed = len(df[df.get(status_col, "").astype(str).str.strip() == "Completed"]) if status_col in df else 0
         
-        # ડેશબોર્ડ (કુલ, પૂર્ણ, બાકી)
+        # ડેશબોર્ડ
         st.markdown(f"""
             <div style="display: flex; justify-content: space-between; background-color: #f0f2f6; padding: 15px; border-radius: 10px;">
                 <div style="text-align: center;"><div>કુલ શાળાઓ</div><div style="font-size: 18px; font-weight: bold;">{total}</div></div>
@@ -65,39 +63,32 @@ def handle_sheet(tab_name):
                     with st.form(key=f"form_{tab_name}"):
                         updated_inputs = {}
                         
-                        # શીટની બધી જ કૉલમ્સ ફોર્મમાં દેખાડવી
+                        # બધી જ કૉલમ્સ ફોર્મમાં દેખાડવી
                         for i, col in enumerate(header):
                             val = str(row_data[col]) if col in row_data and pd.notna(row_data[col]) else ""
-                            
-                            # નિયમ: પહેલી 5 કૉલમ અને છેલ્લી 2 કૉલમ (Status અને TimeStamp) disable રાખવી
                             is_disabled = (i <= 5) or (i >= len(header) - 2)
                             
-                            # જો છેલ્લી બે કૉલમ હોય તો ફોર્મમાં Preview માટે "Completed" કે જૂનો સમય બતાવી શકાય
-                            if i >= len(header) - 2 and not val:
-                                val = "Completed / Auto" if i == len(header) - 2 else "Auto Time"
+                            if i >= len(header) - 2 and (not val or val == "nan"):
+                                val = "Completed" if i == len(header) - 2 else ""
                                 
                             updated_inputs[col] = st.text_input(col, value=val, disabled=is_disabled)
                         
                         if st.form_submit_button("ફેરફાર સેવ કરો"):
                             with st.spinner('માહિતી સેવ થઈ રહી છે...'):
                                 sheet_row_idx = idx + 2 
-                                existing_row = rows[sheet_row_idx - 1]
-                                
-                                while len(existing_row) < len(header):
-                                    existing_row.append("")
-                                    
-                                # બધી કૉલમ્સ અપડેટ કરવી
                                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                
+                                # જૂના ડેટા પર આધાર રાખ્યા વગર, હેડરની લંબાઈ મુજબ નવું પરફેક્ટ લિસ્ટ બનાવીએ છીએ
+                                final_values = []
                                 for i, col_name in enumerate(header):
-                                    if i == len(header) - 2:  # છેલ્લીથી બીજો કોલમ (Status)
-                                        existing_row[i] = "Completed"
-                                    elif i == len(header) - 1: # છેલ્લી કોલમ (TimeStamp)
-                                        existing_row[i] = current_time
-                                    elif i > 5: # જે યુઝરે ભરી છે તે કૉલમ્સ
-                                        if col_name in updated_inputs:
-                                            existing_row[i] = str(updated_inputs[col_name])
-                                        
-                                final_values = existing_row[:len(header)]
+                                    if i == len(header) - 2:  # Entry Status
+                                        final_values.append("Completed")
+                                    elif i == len(header) - 1: # TimeStamp
+                                        final_values.append(current_time)
+                                    else:
+                                        # બાકીની કૉલમ્સમાં યુઝરે ભરેલી અથવા જૂની વેલ્યુ મૂકો
+                                        val = updated_inputs.get(col_name, row_data.get(col_name, ""))
+                                        final_values.append(str(val))
                                 
                                 body = {'values': [final_values]}
                                 service.spreadsheets().values().update(
